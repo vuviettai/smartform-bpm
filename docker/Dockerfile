@@ -2,12 +2,12 @@
 
 # Maven build
 FROM maven:3.8.1-openjdk-17-slim AS MAVEN_TOOL_CHAIN
-COPY pom*.xml /tmp/
+COPY pom*.xml /smartform/
 COPY docker/settings-docker.xml /usr/share/maven/ref/
-WORKDIR /tmp/
+WORKDIR /smartform/
 # This allows Docker to cache most of the maven dependencies
 RUN mvn -s /usr/share/maven/ref/settings-docker.xml dependency:resolve-plugins dependency:resolve dependency:go-offline -B
-COPY src /tmp/src/
+COPY src /smartform/src/
 RUN mvn -s /usr/share/maven/ref/settings-docker.xml package -P default -Dmaven.test.skip=true
 
 # Final custom slim java image (for apk command see 17-jdk-alpine-slim)
@@ -16,19 +16,22 @@ FROM openjdk:17-jdk-alpine
 RUN apk update && apk upgrade
 
 # set label for image
-LABEL Name="formsflow"
+LABEL Name="smartform"
 
 ENV JAVA_VERSION=17-ea+14
 ENV JAVA_HOME=/opt/java/openjdk-17\
     PATH="/opt/java/openjdk-17/bin:$PATH"
 
 EXPOSE 8080
-# OpenShift has /app in the image, but it's missing when doing local development - Create it when missing
-RUN test ! -d /app && mkdir /app || :
-# Add spring boot application
-RUN mkdir -p /app
-COPY --from=MAVEN_TOOL_CHAIN /tmp/target/smartform-api.jar ./app
-RUN chmod a+rwx -R /app
-WORKDIR /app
-VOLUME /tmp
-ENTRYPOINT ["java","-Djava.security.egd=file:/dev/./urandom", "-Dpolyglot.js.nashorn-compat=true", "-Dpolyglot.engine.WarnInterpreterOnly=false", "-jar","/app/smartform-api.jar"]
+RUN mkdir -p /deployments
+# We make four distinct layers so if there are application changes the library layers can be re-used
+COPY --from=MAVEN_TOOL_CHAIN --chown=185 /smartform/target/quarkus-app/lib/ /deployments/lib/
+COPY --from=MAVEN_TOOL_CHAIN --chown=185 /smartform/target/quarkus-app/*.jar /deployments/
+COPY --from=MAVEN_TOOL_CHAIN --chown=185 /smartform/target/quarkus-app/app/ /deployments/app/
+COPY --from=MAVEN_TOOL_CHAIN --chown=185 /smartform/target/quarkus-app/quarkus/ /deployments/quarkus/
+
+RUN chmod a+rwx -R /deployments
+WORKDIR /deployments
+VOLUME /deployments
+ENTRYPOINT ["java","-jar","/deployments/quarkus-run.jar"]
+CMD [ "-Dquarkus.http.host=0.0.0.0", "-Djava.util.logging.manager=org.jboss.logmanager.LogManager" ]

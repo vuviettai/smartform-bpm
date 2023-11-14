@@ -1,6 +1,6 @@
 #!/bin/bash
 DIR="$( cd "$( dirname "$0" )" && pwd )"
-ENV=${1:-formsflow}
+ENV=${1:-smartform}
 ENV_FILE=$DIR/.env.${ENV}
 OS=$(uname)
 DOCKER_COMPOSE=${DIR}/docker-compose.yml
@@ -21,4 +21,5 @@ then
     sed -i "s|HOST_IP=.*|HOST_IP=$HOST_IP|g" $ENV_FILE
 fi 
 COMPOSES="-f ${DOCKER_COMPOSE}"
-docker-compose ${COMPOSES} up -d
+
+docker-compose ${COMPOSES} --env-file $ENV_FILE up -d
