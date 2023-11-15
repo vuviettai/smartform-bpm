@@ -11,8 +11,8 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.QueryParam;
 
 @Path("/formsflow")
-@RegisterRestClient
+@RegisterRestClient(configKey = "formsflow-api")
 public interface FormsflowService {
-	@GET
+    @GET
     Set<FormioForm> getById(@QueryParam("id") String id);
 }
