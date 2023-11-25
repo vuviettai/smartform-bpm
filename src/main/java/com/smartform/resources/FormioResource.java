@@ -1,5 +1,6 @@
 package com.smartform.resources;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.microprofile.rest.client.inject.RestClient;
@@ -8,6 +9,7 @@ import org.jboss.resteasy.reactive.RestPath;
 import com.smartform.rest.client.FormioService;
 import com.smartform.rest.model.FormioForm;
 import com.smartform.rest.model.Submission;
+import com.smartform.rest.model.Submissions;
 
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -62,7 +64,23 @@ public class FormioResource {
 		
 		return createdSubmission;
 	}
-	
+	@Path("/{formId}/submission/upload")
+	@POST
+	public List<Submission> uploadSubmissions(@RestPath String formId, Submissions submissions) {
+		List<Submission> uploadedSubmissions = new ArrayList<Submission>();
+		if (submissions != null) {
+			List<Submission> payload = submissions.toSubmissionList();
+			for(Submission submission : payload) {
+				try {
+					Submission createdSubmission = formioService.createSubmission(formId, submission);
+					uploadedSubmissions.add(createdSubmission);
+				} catch (WebApplicationException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return uploadedSubmissions;
+	}
 	@Path("/{formId}/submission/{submissionId}")
 	@GET
 	public Submission getSubmission(@RestPath String formId, @RestPath String submissionId) {
