@@ -36,19 +36,23 @@ public class FormResource {
 		result.setForms(new ArrayList<Formsflow>());
 		result.setTotalCount(0);
 		try {
-			FormsflowPage forms = formsflowService.getForms(1, Integer.MAX_VALUE, sortBy, sortOrder, FORM_TYPE_FORM, null);
+			String formTypes = FORM_TYPE_FORM + "," + FORM_TYPE_RESOURCE;
+			FormsflowPage forms = formsflowService.getForms(1, Integer.MAX_VALUE, sortBy, sortOrder, formTypes, null);
 			result.setTotalCount(result.getTotalCount() + forms.getTotalCount());
 			for (Formsflow form : forms.getForms()) {
-				form.setFormType(FORM_TYPE_FORM);
+				if (form.getFormType() == null) {
+					form.setFormType(FORM_TYPE_FORM);
+				}
 				result.getForms().add(form);
 			}
-			FormsflowPage resources = formsflowService.getForms(1, Integer.MAX_VALUE, sortBy, sortOrder, FORM_TYPE_RESOURCE, null);
-			result.setTotalCount(result.getTotalCount() + resources.getTotalCount());
-			for (Formsflow form : resources.getForms()) {
-				form.setFormType(FORM_TYPE_RESOURCE);
-				result.getForms().add(form);
-			}
-			
+//			FormsflowPage resources = formsflowService.getForms(1, Integer.MAX_VALUE, sortBy, sortOrder, FORM_TYPE_RESOURCE, null);
+//			result.setTotalCount(result.getTotalCount() + resources.getTotalCount());
+//			for (Formsflow form : resources.getForms()) {
+//				form.setFormType(FORM_TYPE_RESOURCE);
+//				result.getForms().add(form);
+//			}
+			result.setLimit(Integer.MAX_VALUE);
+			result.setPageNo(1);
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
 		}

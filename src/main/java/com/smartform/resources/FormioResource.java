@@ -16,8 +16,10 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
-import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.UriInfo;
 
 @Path("/form")
 public class FormioResource {
@@ -38,14 +40,12 @@ public class FormioResource {
 	}
 	@Path("/{formId}/submission")
 	@GET
-	public List<Submission> getSubmissions(@RestPath String formId, 
-			@QueryParam("limit") Integer limit, 
-			@QueryParam("skip") Integer skip,
-			@QueryParam("select") String select,
-			@QueryParam("sort") String sort) {
+	public List<Submission> getSubmissions(@RestPath String formId, @Context UriInfo uriInfo) {
 		List<Submission> submissions = null;
 		try {
-			submissions = formioService.getSubmissions(formId, limit, skip, select, sort);
+			MultivaluedMap<String, String> queryParams = uriInfo.getQueryParameters();
+			//Map<String, String> filters = new HashMap<String, >();
+			submissions = formioService.getSubmissions(formId, queryParams);
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
 		}
