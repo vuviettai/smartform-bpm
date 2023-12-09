@@ -1,13 +1,17 @@
 package com.smartform.resources;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.resteasy.reactive.RestPath;
 
 import com.smartform.rest.client.FormioService;
+import com.smartform.rest.client.FormsflowService;
 import com.smartform.rest.model.FormioForm;
+import com.smartform.rest.model.Formsflow;
 import com.smartform.rest.model.Submission;
 import com.smartform.rest.model.Submissions;
 
@@ -22,10 +26,15 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.UriInfo;
 
 @Path("/form")
-public class FormioResource {
-
+public class FormioResource extends AbstractResource {
+	public static final String REFERENCE_FORM	=	"form";
+	public static final String REFERENCE_ID		=	"_id";
+	
 	@RestClient 
     FormioService formioService;
+	
+	@RestClient 
+    FormsflowService formsflowService;
 	
 	@Path("/{formId}")
 	@GET
@@ -46,6 +55,15 @@ public class FormioResource {
 			MultivaluedMap<String, String> queryParams = uriInfo.getQueryParameters();
 			//Map<String, String> filters = new HashMap<String, >();
 			submissions = formioService.getSubmissions(formId, queryParams);
+			//Todo: Improve performance
+			if (submissions != null) {
+				for(Submission submission : submissions) {
+					if (submission.getData() != null) {
+						loadReferenceSubmissions((Map<String, Object>)submission.getData());
+					}
+				}
+			}
+			
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
 		}
@@ -56,7 +74,9 @@ public class FormioResource {
 	@POST
 	public Submission createSubmission(@RestPath String formId, Submission submission) {
 		Submission createdSubmission = null;
+		Formsflow formsflow = null;
 		try {
+			formsflow = formsflowService.getById(formId);
 			createdSubmission = formioService.createSubmission(formId, submission);
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
@@ -87,6 +107,11 @@ public class FormioResource {
 		Submission submission = null;
 		try {
 			submission = formioService.getSubmission(formId, submissionId);
+			//Load reference;
+			Map<String, Object> data = submission.getData();
+			if (data != null) {
+				loadReferenceSubmissions(data);
+			}
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
 		}
@@ -117,5 +142,36 @@ public class FormioResource {
 		}
 		
 		return deleted;
+	}
+	//Load reference submission fields
+	private void loadReferenceSubmissions(Map<String, Object> data) {
+		Map<String, Submission> mapRefSubmissions = new HashMap<String, Submission>();
+		for(Map.Entry<String, Object> entry : data.entrySet()) {
+			if (entry.getValue() instanceof Map) {
+				Map<String, String> ref = (Map<String, String>)entry.getValue();
+				Submission refSubmission = getReferenceSubmission(ref);
+				if (refSubmission != null) {
+					String key = ref.get(REFERENCE_FORM) + "#" + ref.get(REFERENCE_ID);
+					mapRefSubmissions.put(entry.getKey(), refSubmission);
+				}
+			} else if (entry.getValue() instanceof List) {
+				for(Object element : (List) entry.getValue()) {
+					if (element instanceof Map) {
+						loadReferenceSubmissions((Map<String, Object>)element);
+					}
+				}
+				
+			}
+		}
+		data.putAll(mapRefSubmissions);
+	}
+	private Submission getReferenceSubmission(Map<String, String> ref) {
+		String formId = ref.get(REFERENCE_FORM);
+		String submissionId = ref.get(REFERENCE_ID);
+		Submission refSubmission = null;
+		if (formId != null && submissionId != null) {
+			refSubmission = getSubmission(formId, submissionId);
+		}
+		return refSubmission;
 	}
 }

@@ -79,7 +79,8 @@ public class FormResource {
 	}
 	@GET
 	@Path("/{formId}")
-	public String getForm(@RestPath String formId) {
-		return formId;
+	public Formsflow getForm(@RestPath String formId) {
+		Formsflow formsflow = formsflowService.getById(formId);
+		return formsflow;
 	}
 }
