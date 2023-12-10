@@ -10,4 +10,12 @@ public class FormsflowPage {
 	private Integer limit;
 	private Integer pageNo;
 	private Integer totalCount;
+	
+	public void increaseTotalCount(Integer value) {
+		if (totalCount == null) {
+			this.totalCount = value;
+		} else if (value != null) {
+			this.totalCount += value;
+		}
+	}
 }

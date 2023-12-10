@@ -1,7 +1,11 @@
 package com.smartform.resources;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.resteasy.reactive.RestPath;
@@ -37,20 +41,33 @@ public class FormResource {
 		result.setTotalCount(0);
 		try {
 			String formTypes = FORM_TYPE_FORM + "," + FORM_TYPE_RESOURCE;
-			FormsflowPage forms = formsflowService.getForms(1, Integer.MAX_VALUE, sortBy, sortOrder, formTypes, null);
-			result.setTotalCount(result.getTotalCount() + forms.getTotalCount());
+			Map<String,Formsflow> mapForms = new HashMap<String, Formsflow>();
+			//Get forms
+			FormsflowPage forms = formsflowService.getForms(1, Integer.MAX_VALUE, sortBy, sortOrder, FORM_TYPE_FORM, null);
+			result.setTotalCount(forms.getTotalCount());
 			for (Formsflow form : forms.getForms()) {
 				if (form.getFormType() == null) {
 					form.setFormType(FORM_TYPE_FORM);
 				}
-				result.getForms().add(form);
+				mapForms.put(form.getFormId(), form);
 			}
-//			FormsflowPage resources = formsflowService.getForms(1, Integer.MAX_VALUE, sortBy, sortOrder, FORM_TYPE_RESOURCE, null);
-//			result.setTotalCount(result.getTotalCount() + resources.getTotalCount());
-//			for (Formsflow form : resources.getForms()) {
-//				form.setFormType(FORM_TYPE_RESOURCE);
-//				result.getForms().add(form);
-//			}
+			result.getForms().addAll(forms.getForms());
+			/*
+			 * Get resouces
+			 * Need two call due to processing in formsflow.
+			 */
+			
+			FormsflowPage resources = formsflowService.getForms(1, Integer.MAX_VALUE, sortBy, sortOrder, FORM_TYPE_RESOURCE, null);
+			for (Formsflow form : resources.getForms()) {
+				Formsflow loadedForm = mapForms.get(form.getFormId());
+				if (loadedForm != null) {
+					loadedForm.setFormType(null);
+				} else {
+					form.setFormType(FORM_TYPE_RESOURCE);
+					result.getForms().add(form);
+					result.increaseTotalCount(1);
+				}
+			}
 			result.setLimit(Integer.MAX_VALUE);
 			result.setPageNo(1);
 		} catch (WebApplicationException e) {
