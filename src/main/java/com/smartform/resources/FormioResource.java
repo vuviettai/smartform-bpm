@@ -74,9 +74,9 @@ public class FormioResource extends AbstractResource {
 	@POST
 	public Submission createSubmission(@RestPath String formId, Submission submission) {
 		Submission createdSubmission = null;
-		Formsflow formsflow = null;
+		//Formsflow formsflow = null;
 		try {
-			formsflow = formsflowService.getById(formId);
+			//formsflow = formsflowService.getById(formId);
 			createdSubmission = formioService.createSubmission(formId, submission);
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
