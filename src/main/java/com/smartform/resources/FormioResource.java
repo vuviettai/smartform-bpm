@@ -1,40 +1,58 @@
 package com.smartform.resources;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.resteasy.reactive.RestPath;
+import org.jboss.resteasy.reactive.RestResponse;
+import org.jboss.resteasy.reactive.RestResponse.ResponseBuilder;
+import org.jboss.resteasy.reactive.common.util.RestMediaType;
 
+import com.smartform.customize.vgec.CommissionPolicy;
+import com.smartform.customize.vgec.CommissionService;
+import com.smartform.models.ActionResult;
+import com.smartform.models.SubmissionRef;
 import com.smartform.rest.client.FormioService;
 import com.smartform.rest.client.FormsflowService;
 import com.smartform.rest.model.FormioForm;
-import com.smartform.rest.model.Formsflow;
 import com.smartform.rest.model.Submission;
 import com.smartform.rest.model.Submissions;
+import com.smartform.utils.SubmissionUtil;
 
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.UriInfo;
 
 @Path("/form")
 public class FormioResource extends AbstractResource {
-	public static final String REFERENCE_FORM	=	"form";
-	public static final String REFERENCE_ID		=	"_id";
+
+	public static final String ACTION			=	"action";
 	
 	@RestClient 
     FormioService formioService;
 	
 	@RestClient 
     FormsflowService formsflowService;
+	
+	@Inject
+	CommissionService commissionService;
+	
+	@Inject
+	private SubmissionUtil submissionUtil;
 	
 	@Path("/{formId}")
 	@GET
@@ -47,28 +65,37 @@ public class FormioResource extends AbstractResource {
 		}
 		return formioForm;
 	}
-	@Path("/{formId}/submission")
 	@GET
-	public List<Submission> getSubmissions(@RestPath String formId, @Context UriInfo uriInfo) {
+	@Path("/{formId}/submission")
+	@Consumes({RestMediaType.APPLICATION_JSON})
+	@Produces({RestMediaType.APPLICATION_JSON})
+	public RestResponse<List<Submission>> getSubmissions(@RestPath String formId, @Context UriInfo uriInfo) {
 		List<Submission> submissions = null;
+		RestResponse<List<Submission>> clientResponse = null;
 		try {
 			MultivaluedMap<String, String> queryParams = uriInfo.getQueryParameters();
 			//Map<String, String> filters = new HashMap<String, >();
-			submissions = formioService.getSubmissions(formId, queryParams);
-			//Todo: Improve performance
+			clientResponse = formioService.getSubmissions(formId, queryParams);
+			submissions = clientResponse.getEntity();
 			if (submissions != null) {
-				for(Submission submission : submissions) {
-					if (submission.getData() != null) {
-						loadReferenceSubmissions((Map<String, Object>)submission.getData());
-					}
-				}
+				loadReferenceSubmissions(submissions);
+//				for(Submission submission : submissions) {
+//					if (submission.getData() != null) {
+//						loadReferenceSubmissions((Map<String, Object>)submission.getData());
+//					}
+//				}
 			}
 			
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
 		}
-		
-		return submissions;
+		ResponseBuilder<List<Submission>> builder = createResponseBuilder(clientResponse);		
+
+//		for(Map.Entry<String, List<String>> header : clientResponse.getStringHeaders().entrySet()) {
+//			builder = builder.header(header.getKey(), header.getValue());
+//		}
+//		builder = builder.type(MediaType.APPLICATION_JSON);
+		return builder.build();
 	}
 	@Path("/{formId}/submission")
 	@POST
@@ -107,10 +134,9 @@ public class FormioResource extends AbstractResource {
 		Submission submission = null;
 		try {
 			submission = formioService.getSubmission(formId, submissionId);
-			//Load reference;
-			Map<String, Object> data = submission.getData();
-			if (data != null) {
-				loadReferenceSubmissions(data);
+			if (submission != null) {
+				//Load reference;
+				loadReferenceSubmissions(Arrays.asList(submission));
 			}
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
@@ -143,35 +169,110 @@ public class FormioResource extends AbstractResource {
 		
 		return deleted;
 	}
+	@Path("/{formId}/submission/{submissionId}/submissionAction")
+	@POST
+	public ActionResult callSubmissionAction(@RestPath String formId, @RestPath String submissionId, Map<String, Object> params) {
+		ActionResult result = new ActionResult();
+		result.setName("submissionAction");
+		result.setFormId(formId);
+		result.setSubmissionId(submissionId);
+		result.setParams(params);
+		String action = (String)params.get(ACTION);
+		if (CommissionService.ACTION_CALCULATE.equalsIgnoreCase(action)) {
+			try {
+				Submission submission = formioService.getSubmission(formId, submissionId);
+				if (submission != null) {
+					//Load reference;
+					loadReferenceSubmissions(Arrays.asList(submission));
+				}
+				CommissionPolicy commissionPolicy = new CommissionPolicy(submission, params);
+				result = commissionService.calculateCommision(commissionPolicy);
+			} catch (WebApplicationException e) {
+				e.printStackTrace();
+			}
+			
+		}
+		return result;
+	}
+	/*
+	 * 2023-12-16 load reference by each field for all submissions.
+	 * This approach gives better performance
+	 */
 	//Load reference submission fields
-	private void loadReferenceSubmissions(Map<String, Object> data) {
-		Map<String, Submission> mapRefSubmissions = new HashMap<String, Submission>();
-		for(Map.Entry<String, Object> entry : data.entrySet()) {
-			if (entry.getValue() instanceof Map) {
-				Map<String, String> ref = (Map<String, String>)entry.getValue();
-				Submission refSubmission = getReferenceSubmission(ref);
-				if (refSubmission != null) {
-					String key = ref.get(REFERENCE_FORM) + "#" + ref.get(REFERENCE_ID);
-					mapRefSubmissions.put(entry.getKey(), refSubmission);
-				}
-			} else if (entry.getValue() instanceof List) {
-				for(Object element : (List) entry.getValue()) {
-					if (element instanceof Map) {
-						loadReferenceSubmissions((Map<String, Object>)element);
+	private void loadReferenceSubmissions(List<Submission> submissions) {
+		//Store all submission ids for each form
+		Map<String, List<String>> mapRefSubmissionIds = new HashMap<String, List<String>>();
+		//Map fieldName with formId
+		Map<String, String> mapFormFields = new HashMap<String, String>();
+		for(Submission submission : submissions) {
+			if (submission.getData() == null) continue;
+			for(Map.Entry<String, Object> entry : submission.getData().entrySet()) {
+				SubmissionRef ref = SubmissionUtil.toSubmissionReference(entry.getValue());
+				if (ref != null) {
+					List<String> list = mapRefSubmissionIds.get(ref.getFormId());
+					if (list == null) {
+						list = new ArrayList<String>();
+						mapRefSubmissionIds.put(ref.getFormId(), list);
 					}
+					list.add(ref.getSubmissionId());
+					mapFormFields.put(entry.getKey(), ref.getFormId());
 				}
-				
 			}
 		}
-		data.putAll(mapRefSubmissions);
-	}
-	private Submission getReferenceSubmission(Map<String, String> ref) {
-		String formId = ref.get(REFERENCE_FORM);
-		String submissionId = ref.get(REFERENCE_ID);
-		Submission refSubmission = null;
-		if (formId != null && submissionId != null) {
-			refSubmission = getSubmission(formId, submissionId);
+		Map<String, List<Submission>> mapReferenceSubmissions = new HashMap<String, List<Submission>>();
+		//Todo: Send references to client for better performance
+		for (Map.Entry<String, List<String>> entry : mapRefSubmissionIds.entrySet()) {
+			MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
+			params.put(Submission._ID, entry.getValue());
+			List<Submission> listReferences = submissionUtil.querySubmissionsByFormId(entry.getKey(), params);
+			mapReferenceSubmissions.put(entry.getKey(), listReferences);
 		}
-		return refSubmission;
+		for (Map.Entry<String, String> entry : mapFormFields.entrySet()) {
+			String fieldName = entry.getKey();
+			List<Submission> listReferences = mapReferenceSubmissions.get(entry.getValue());
+			Map<String, Submission> mapRefById = SubmissionUtil.groupSubmissionsById(listReferences);
+			for(Submission submission : submissions) {
+				if (submission.getData() == null) continue;
+				Object fieldValue = SubmissionUtil.getFieldValue(submission, fieldName);
+				SubmissionRef ref = SubmissionUtil.toSubmissionReference(fieldValue);
+				if (ref != null) {
+					Submission refSubmission = mapRefById.get(ref.getSubmissionId());
+					if (refSubmission != null) {
+						submission.getData().put(fieldName, refSubmission);
+					}
+				}
+			}
+		}
 	}
+//	private void loadReferenceSubmissions(Map<String, Object> data) {
+//		Map<String, Submission> mapRefSubmissions = new HashMap<String, Submission>();
+//		for(Map.Entry<String, Object> entry : data.entrySet()) {
+//			if (entry.getValue() instanceof Map) {
+//				Map<String, String> ref = (Map<String, String>)entry.getValue();
+//				Submission refSubmission = getReferenceSubmission(ref);
+//				if (refSubmission != null) {
+//					String key = ref.get(Submission.FORM) + "#" + ref.get(Submission._ID);
+//					mapRefSubmissions.put(entry.getKey(), refSubmission);
+//				}
+//			} else if (entry.getValue() instanceof List) {
+//				for(Object element : (List) entry.getValue()) {
+//					if (element instanceof Map) {
+//						loadReferenceSubmissions((Map<String, Object>)element);
+//					}
+//				}
+//				
+//			}
+//		}
+//		data.putAll(mapRefSubmissions);
+//	}
+
+//	private Submission getReferenceSubmission(Map<String, String> ref) {
+//		String formId = ref.get(Submission.FORM);
+//		String submissionId = ref.get(Submission._ID);
+//		Submission refSubmission = null;
+//		if (formId != null && submissionId != null) {
+//			refSubmission = getSubmission(formId, submissionId);
+//		}
+//		return refSubmission;
+//	}
 }

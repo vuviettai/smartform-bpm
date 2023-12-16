@@ -3,8 +3,10 @@ package com.smartform.rest.client;
 import java.util.List;
 
 import org.eclipse.microprofile.rest.client.annotation.RegisterClientHeaders;
+import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 import org.jboss.resteasy.reactive.RestQuery;
+import org.jboss.resteasy.reactive.RestResponse;
 
 import com.smartform.rest.model.FormioForm;
 import com.smartform.rest.model.Submission;
@@ -17,9 +19,10 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.core.MultivaluedMap;
 
+
 @Path("/form")
 @RegisterRestClient(configKey = "formio-api")
-//@RegisterProvider(FormioRequestFilter.class)
+@RegisterProvider(FormioResponseHeaderFilter.class)		//Remove header, use config from rest resource
 @RegisterClientHeaders(FormioClientHeaderFactory.class)
 //@ClientHeaderParam(name = "X-Jwt-Token", value = "${formio.jwt-secret}")
 public interface FormioService {
@@ -29,8 +32,11 @@ public interface FormioService {
 	FormioForm getForm(@PathParam("formId") String formId);
 	
 	@GET
+	List<FormioForm> queryForms(@RestQuery MultivaluedMap<String, String> queryParams);
+	
+	@GET
 	@Path("{formId}/submission")
-	List<Submission> getSubmissions(@PathParam("formId") String formId,
+	RestResponse<List<Submission>> getSubmissions(@PathParam("formId") String formId,
 			@RestQuery MultivaluedMap<String, String> queryParams
 //			@QueryParam("limit") Integer limit, 
 //			@QueryParam("skip") Integer skip,
