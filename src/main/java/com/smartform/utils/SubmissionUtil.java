@@ -62,7 +62,12 @@ public class SubmissionUtil {
 		List<Submission> storedSubmissions = new ArrayList<Submission>();
 		if (form != null) {
 			for(Submission submission : submissions) {
-				Submission stored = formioService.createSubmission(form.get_id(), submission);
+				Submission stored = null;
+				if (submission.get_id() != null) {
+					stored = formioService.putSubmission(form.get_id(), submission.get_id(), submission);
+				} else {
+					stored = formioService.createSubmission(form.get_id(), submission);
+				}
 				storedSubmissions.add(stored);
 			}
 		}

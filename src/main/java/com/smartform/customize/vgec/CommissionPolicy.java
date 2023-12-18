@@ -2,7 +2,10 @@ package com.smartform.customize.vgec;
 
 import java.text.SimpleDateFormat;
 import java.time.YearMonth;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -15,12 +18,16 @@ import com.smartform.rest.model.FormioForm;
 import com.smartform.rest.model.Submission;
 import com.smartform.utils.SubmissionUtil;
 
+import jakarta.ws.rs.core.MultivaluedHashMap;
+import jakarta.ws.rs.core.MultivaluedMap;
+
 public class CommissionPolicy {
 	public static final String FORM_BENEFICIARY 				= "form_tvv";
 	public static final String FORM_CONTRACT 					= "form_contract";
 	public static final String FORM_NOPTIEN 					= "form_noptien";
 	public static final String FORM_COMMISSION 					= "form_commission";
 	public static final String FORM_COMMISSION_TRAN 			= "form_commissiontran";
+	public static final String COMMISSION_PERIOD 				= "period";
 	public static final String COMMISSION						= "commission";
 	public static final String COMMISSION_LEVELS 				= "commissionLevels";
 	public static final String COMMISSION_TRANS 				= "commissionTrans";
@@ -28,7 +35,7 @@ public class CommissionPolicy {
 	public static final String COMMISSION_MAX_CONTRACT_AMOUNT 	= "maxContractAmount";
 	public static final String COMMISSION_VALUE 				= "commission";
 	public static final String COMMISSION_POLICY 				= "policy";
-	public static final String COMMISSION_PERIOD 				= "periodUnit";
+	public static final String COMMISSION_PERIOD_UNIT			= "periodUnit";
 	public static final String COMMISSION_PERIOD_YEARLY 		= "yearly";
 	public static final String COMMISSION_PERIOD_QUARTERLY 		= "quarterly";
 	public static final String COMMISSION_PERIOD_MONTHLY 		= "monthly";
@@ -59,20 +66,37 @@ public class CommissionPolicy {
 		this.submission = submission;
 	}
 	public String getPolicyPeriod() {
-		String period = null;
+		String period = (String)params.get(COMMISSION_PERIOD);
+		ZonedDateTime inputPeriod = parsePeriod(period);
+		//Period using component Formio's Day has format "MM/dd/YYYY";
 		String periodUnit = (String)SubmissionUtil.getFieldValue(submission, "periodUnit");
 		if(CommissionPolicy.COMMISSION_PERIOD_YEARLY.equalsIgnoreCase(periodUnit)) {
-			YearMonth lastYear = YearMonth.now().minusYears(1);
-			int year = lastYear.getYear();
-			period = String.valueOf(year);
+			YearMonth yearValue = null;
+			if (inputPeriod != null) {
+				yearValue = YearMonth.from(inputPeriod);
+			} else {
+				yearValue = YearMonth.now().minusYears(1);
+			}
+			
+			period = String.valueOf(yearValue.getYear());
 		}
 		else if(CommissionPolicy.COMMISSION_PERIOD_QUARTERLY.equalsIgnoreCase(periodUnit)) {
-			YearMonth lastMonth = YearMonth.now().minusMonths(3);
-			period = lastMonth.format(DateTimeFormatter.ofPattern("yyyy-QQ"));
+			YearMonth yearMonth = null;
+			if (inputPeriod != null) {
+				yearMonth = YearMonth.from(inputPeriod);
+			} else {
+				yearMonth = YearMonth.now().minusMonths(3);
+			}
+			period = yearMonth.format(DateTimeFormatter.ofPattern("yyyy-QQ"));
 		}
 		else if(CommissionPolicy.COMMISSION_PERIOD_MONTHLY.equalsIgnoreCase(periodUnit)) {
-			YearMonth lastMonth = YearMonth.now().minusMonths(1);
-			period = lastMonth.format(DateTimeFormatter.ofPattern(PATTERN_YEAR_MONTH));
+			YearMonth yearMonth = null;
+			if (inputPeriod != null) {
+				yearMonth = YearMonth.from(inputPeriod);
+			} else {
+				yearMonth = YearMonth.now().minusMonths(1);
+			}
+			period = yearMonth.format(DateTimeFormatter.ofPattern(PATTERN_YEAR_MONTH));
 		}
 		else if(CommissionPolicy.COMMISSION_PERIOD_WEEKLY.equalsIgnoreCase(periodUnit)) {
 			Calendar calendar = Calendar.getInstance();
@@ -85,7 +109,70 @@ public class CommissionPolicy {
 			SimpleDateFormat simpleDateFormat = new SimpleDateFormat(PATTERN_DATE);
 			period = simpleDateFormat.format(calendar.getTime());
 		}
+		
 		return period;
+	}
+	public MultivaluedMap<String, String> prepareParamsContract(String period) {
+		MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
+		String periodUnit = (String)SubmissionUtil.getFieldValue(submission, "periodUnit");
+		String field = "data.contractDate";
+		if(CommissionPolicy.COMMISSION_PERIOD_YEARLY.equalsIgnoreCase(periodUnit)) {
+			try {
+				int year = Integer.parseInt(period);
+				params.add(field + "__gte", String.valueOf(year));
+				params.add(field + "__lt", String.valueOf(year + 1));
+			} catch (NumberFormatException e) {
+				e.printStackTrace();
+			}
+		}
+		else if(CommissionPolicy.COMMISSION_PERIOD_QUARTERLY.equalsIgnoreCase(periodUnit)) {
+			
+			//period = yearMonth.format(DateTimeFormatter.ofPattern("yyyy-QQ"));
+		}
+		else if(CommissionPolicy.COMMISSION_PERIOD_MONTHLY.equalsIgnoreCase(periodUnit)) {
+			String[] parts = period.split("-");
+			try {
+				ZoneId zoneId = ZoneId.of("GMT+0");
+				int year = Integer.parseInt(parts[0]);
+				int month = Integer.parseInt(parts[1]);
+				ZonedDateTime zdt = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, zoneId);
+				DateTimeFormatter dtf = DateTimeFormatter.ofPattern(PATTERN_DATE);
+				params.add(field + "__gte", zdt.format(dtf));
+				zdt = zdt.plusMonths(1);
+				params.add(field + "__lt", zdt.format(dtf));
+			} catch (NumberFormatException e) {
+				e.printStackTrace();
+			}
+		}
+		else if(CommissionPolicy.COMMISSION_PERIOD_WEEKLY.equalsIgnoreCase(periodUnit)) {
+			Calendar calendar = Calendar.getInstance();
+			
+			//period = lastMonth.format(DateTimeFormatter.ofPattern("YYYY-MM-W"));
+		}
+		else if(CommissionPolicy.COMMISSION_PERIOD_DAILY.equalsIgnoreCase(periodUnit)) {
+			
+		}
+		return params;
+	}
+	private ZonedDateTime parsePeriod(String period) {
+		ZonedDateTime zdt = null;
+		try {
+//			DateTimeFormatter dtf = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+//			zdt = ZonedDateTime.parse( period , dtf );
+			String[] parts = period.split("/");
+			if (parts.length == 3) {
+				int month = Integer.parseInt(parts[0]);
+				int day = Integer.parseInt(parts[1]);
+				if (day <= 0) {
+					day = 1;
+				}
+				int year = Integer.parseInt(parts[2]);
+				zdt = ZonedDateTime.of(year, month, day, 0, 0, 0, 0, ZoneId.of("GMT+0"));
+			}
+		} catch (DateTimeParseException e) {
+			// TODO Auto-generated catch block
+		}
+		return zdt;
 	}
 	public String getFormBeneficiary() {
 		String formName = params != null ? (String) params.get(FORM_BENEFICIARY) : null;

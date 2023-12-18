@@ -36,11 +36,6 @@ public class CommissionService {
 		MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
 		//List<Submission> tvvs = submissionUtil.getSubmissionsByFormName(commissionPolicy.getFormTVV(), params);
 		
-		//2. Get all Contracts theo TVV trong thang truoc de xac dinh muc Hoa Hong cho TVV
-		params = Utils.prepareParamsLastMonthContract();
-		List<Submission> contracts = submissionUtil.getSubmissionsByFormName(commissionPolicy.getFormContract(), params);
-		List<String> contractIds = Utils.getContractIds(contracts);
-		
 //		//3. Get so lan nop tien theo cac hop dong de sinh ra so tien se chuyen cho TVV
 //		params = Utils.prepareParamsNoptienByContracts(contractIds);
 //		List<Submission> noptiens = submissionUtil.getSubmissionsByFormName(commissionPolicy.getFormNoptien(), params);
@@ -52,6 +47,11 @@ public class CommissionService {
 		FormioForm formCommissionTran = submissionUtil.getFormByName(commissionPolicy.getFormCommissionTran());
 		if (formCommission != null && formCommissionTran != null && formBeneficiary != null) {
 			String policyPeriod = commissionPolicy.getPolicyPeriod();
+			//2. Get all Contracts theo TVV trong thang truoc de xac dinh muc Hoa Hong cho TVV
+			params = commissionPolicy.prepareParamsContract(policyPeriod);
+			List<Submission> contracts = submissionUtil.getSubmissionsByFormName(commissionPolicy.getFormContract(), params);
+			List<String> contractIds = Utils.getContractIds(contracts);
+			
 			Map<Object, List<Submission>> mapGroups = SubmissionUtil.groupSubmissionsByField(contracts, CommissionPolicy.COMMISSION_TVV);
 			List<Submission> listCommissions = new ArrayList<Submission>();
 			List<Submission> listCommissionTrans = new ArrayList<Submission>();
@@ -131,7 +131,9 @@ public class CommissionService {
 		List<Submission> currentCommissions = submissionUtil.querySubmissionsByFormId(formCommissionTran.get_id(), params);
 		Map<String, List<Submission>> mapDbSubmission = SubmissionUtil.groupSubmissionsByReference(currentCommissions, CommissionPolicy.COMMISSION_CONTRACT);
 		Map<String, List<Submission>> mapCurrentSubmission = SubmissionUtil.groupSubmissionsByReference(listCommissions, CommissionPolicy.COMMISSION_CONTRACT);
+		Set<Object> deletedContracts = new HashSet<Object>(mapDbSubmission.keySet());
 		for(Map.Entry<String, List<Submission>> entry : mapCurrentSubmission.entrySet()) {
+			deletedContracts.remove(entry.getKey());
 			Map<Object, Submission> mapCurrent = SubmissionUtil.groupSubmissionsByUniqueField(entry.getValue(), "name");
 			Map<Object, List<Submission>> mapDb = SubmissionUtil.groupSubmissionsByField(mapDbSubmission.get(entry.getKey()), "name");
 			for(Map.Entry<Object, Submission> e : mapCurrent.entrySet()) {
@@ -156,6 +158,9 @@ public class CommissionService {
 					listDeleteCommissions.addAll(e.getValue());
 				}
 			}
+		}
+		for (Object contract : deletedContracts) {
+			listDeleteCommissions.addAll(mapDbSubmission.get(contract));
 		}
 		List<Submission> listStoredCommissions = submissionUtil.storeSubmissions(formCommissionTran, listWriteCommissions);
 		if (listDeleteCommissions.size() > 0) {
