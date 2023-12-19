@@ -57,6 +57,59 @@ public class SubmissionUtil {
 		}
 		return result;
 	}
+
+	/*
+	 * 2023-12-16 load reference by each field for all submissions.
+	 * This approach gives better performance
+	 */
+	// Load reference submission fields
+	public void loadReferenceSubmissions(List<Submission> submissions) {
+		// Store all submission ids for each form
+		Map<String, List<String>> mapRefSubmissionIds = new HashMap<String, List<String>>();
+		// Map fieldName with formId
+		Map<String, String> mapFormFields = new HashMap<String, String>();
+		for (Submission submission : submissions) {
+			if (submission.getData() == null)
+				continue;
+			for (Map.Entry<String, Object> entry : submission.getData().entrySet()) {
+				SubmissionRef ref = SubmissionUtil.toSubmissionReference(entry.getValue());
+				if (ref != null) {
+					List<String> list = mapRefSubmissionIds.get(ref.getFormId());
+					if (list == null) {
+						list = new ArrayList<String>();
+						mapRefSubmissionIds.put(ref.getFormId(), list);
+					}
+					list.add(ref.getSubmissionId());
+					mapFormFields.put(entry.getKey(), ref.getFormId());
+				}
+			}
+		}
+		Map<String, List<Submission>> mapReferenceSubmissions = new HashMap<String, List<Submission>>();
+		// Todo: Send references to client for better performance
+		for (Map.Entry<String, List<String>> entry : mapRefSubmissionIds.entrySet()) {
+			MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
+			params.put(Submission._ID, entry.getValue());
+			List<Submission> listReferences = querySubmissionsByFormId(entry.getKey(), params);
+			mapReferenceSubmissions.put(entry.getKey(), listReferences);
+		}
+		for (Map.Entry<String, String> entry : mapFormFields.entrySet()) {
+			String fieldName = entry.getKey();
+			List<Submission> listReferences = mapReferenceSubmissions.get(entry.getValue());
+			Map<String, Submission> mapRefById = SubmissionUtil.groupSubmissionsById(listReferences);
+			for (Submission submission : submissions) {
+				if (submission.getData() == null)
+					continue;
+				Object fieldValue = SubmissionUtil.getFieldValue(submission, fieldName);
+				SubmissionRef ref = SubmissionUtil.toSubmissionReference(fieldValue);
+				if (ref != null) {
+					Submission refSubmission = mapRefById.get(ref.getSubmissionId());
+					if (refSubmission != null) {
+						submission.getData().put(fieldName, refSubmission);
+					}
+				}
+			}
+		}
+	}
 	
 	public List<Submission> storeSubmissions(FormioForm form, List<Submission> submissions) {
 		List<Submission> storedSubmissions = new ArrayList<Submission>();
@@ -155,7 +208,9 @@ public class SubmissionUtil {
 				Object groupId = SubmissionUtil.getFieldValue(submission, fieldName);
 				if (groupId instanceof Map) {
 					groupId = ((Map<String, Object>)groupId).get(Submission._ID);
-				} 
+				} else if (groupId instanceof Submission) {
+					groupId = ((Submission)groupId).get_id();
+				}
 				List<Submission> list = result.get(groupId);
 				if (list == null) {
 					list = new ArrayList<Submission>();

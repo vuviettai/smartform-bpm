@@ -22,19 +22,26 @@ import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 
 public class CommissionPolicy {
-	public static final String FORM_BENEFICIARY 				= "form_tvv";
+	public static final String FORM_DETAIL						= "commissionPolicyDetail";
+	public static final String FORM_BENEFICIARY 				= "form_congtacvien";
 	public static final String FORM_CONTRACT 					= "form_contract";
 	public static final String FORM_NOPTIEN 					= "form_noptien";
 	public static final String FORM_COMMISSION 					= "form_commission";
 	public static final String FORM_COMMISSION_TRAN 			= "form_commissiontran";
+	public static final String CONTRACT_CONGTACVIEN				= "congtacvien";
+	public static final String BENEFICIARY_TYPE 				= "type";
 	public static final String COMMISSION_PERIOD 				= "period";
 	public static final String COMMISSION						= "commission";
 	public static final String COMMISSION_LEVELS 				= "commissionLevels";
 	public static final String COMMISSION_TRANS 				= "commissionTrans";
 	public static final String COMMISSION_MIN_CONTRACT_AMOUNT 	= "minContractAmount";
 	public static final String COMMISSION_MAX_CONTRACT_AMOUNT 	= "maxContractAmount";
+	public static final String COMMISSION_OBJECTIVE 			= "objective";
 	public static final String COMMISSION_VALUE 				= "commission";
 	public static final String COMMISSION_POLICY 				= "policy";
+	public static final String COMMISSION_PATTERN 				= "pattern";
+	public static final String COMMISSION_PATTERN_ONETIME		= "onetime";
+	public static final String COMMISSION_PATTERN_BYCONTRACT	= "bycontract";
 	public static final String COMMISSION_PERIOD_UNIT			= "periodUnit";
 	public static final String COMMISSION_PERIOD_YEARLY 		= "yearly";
 	public static final String COMMISSION_PERIOD_QUARTERLY 		= "quarterly";
@@ -50,14 +57,24 @@ public class CommissionPolicy {
 	public static final String PATTERN_DATE						= "yyyy-MM-dd";
 
 	private Submission submission;
+	private List<Submission> details;
 	private Map<String, Object> params;
 
-	public CommissionPolicy(Submission submission, Map<String, Object> params) {
+	public CommissionPolicy(Submission submission, List<Submission> details, Map<String, Object> params) {
 		super();
 		this.submission = submission;
+		this.details = details;
 		this.params = params;
 	}
-
+	private Submission getCommissionByBeneficiaryType(String beneficiaryType) {
+		for (Submission detail : details) {
+			Object type = SubmissionUtil.getFieldValue(detail, COMMISSION_OBJECTIVE);
+			if (beneficiaryType.equals(type)) {
+				return detail;
+			}
+		}
+		return null;
+	}
 	public Submission getSubmission() {
 		return submission;
 	}
@@ -202,26 +219,38 @@ public class CommissionPolicy {
 	public BeneficiaryCommission createCommission(FormioForm formCommission, FormioForm formCommissionTran, String beneficiaryFormId, String beneficiaryId, String period, 
 			List<Submission> contracts ) {
 		if (contracts == null || contracts.size() == 0) return null;
+		String beneficiaryField = getFormBeneficiary();
+		Object congtacvien = SubmissionUtil.getFieldValue(contracts.get(0), beneficiaryField);
+		String beneficiaryType = congtacvien instanceof Submission 
+				? (String)SubmissionUtil.getFieldValue((Submission)congtacvien, CommissionPolicy.BENEFICIARY_TYPE) : null;
+		Submission commissionDetail = getCommissionByBeneficiaryType(beneficiaryType);
 		Submission headerCommission = null;
 		List<Submission> detailCommissions = null;
 		Float commissionPerContract = null;
 		int contractCount = contracts.size();
 		Number value = null;
-		Object levels = SubmissionUtil.getFieldValue(this.submission, COMMISSION_LEVELS);
+		Object levels = SubmissionUtil.getFieldValue(commissionDetail, COMMISSION_LEVELS);
+		Object commissionRounds = SubmissionUtil.getFieldValue(commissionDetail, COMMISSION_TRANS);
+		String pattern = null;
 		if (levels instanceof List) {
 			List<Map<String, Object>> commissionLevels = (List<Map<String, Object>>) levels;
 			for (Map<String, Object> level : commissionLevels) {
-				Object minContractAmount = level.get(COMMISSION_MIN_CONTRACT_AMOUNT);
-				Object maxContractAmount = level.get(COMMISSION_MAX_CONTRACT_AMOUNT);
+				Object minValue = level.get(COMMISSION_MIN_CONTRACT_AMOUNT);
+				Integer minContractAmount = (minValue instanceof Number) ? ((Number)minValue).intValue() : 0;
+				Object maxValue = level.get(COMMISSION_MAX_CONTRACT_AMOUNT);
+				Integer maxContractAmount = (maxValue instanceof Number) ? ((Number)maxValue).intValue() : Integer.MAX_VALUE;
 				
-				if (minContractAmount instanceof Number 
-						&& maxContractAmount instanceof Number
-						&& (Integer)minContractAmount <= contractCount
-						&& (Integer)maxContractAmount > contractCount) {
+				if (minContractAmount <= contractCount
+						&& maxContractAmount > contractCount) {
 					Object commissionValue = level.get(COMMISSION_VALUE);
 					if (commissionValue instanceof Number) {
 						commissionPerContract = ((Number) commissionValue).floatValue();
-						value = commissionPerContract * contractCount;
+						pattern = String.valueOf(level.get(COMMISSION_PATTERN));
+						if (COMMISSION_PATTERN_BYCONTRACT.equalsIgnoreCase(pattern)) {
+							value = commissionPerContract * contractCount;
+						} else if (COMMISSION_PATTERN_ONETIME.equalsIgnoreCase(pattern)) {
+							value = commissionPerContract;
+						}
 					}
 					break;
 				}
@@ -242,57 +271,92 @@ public class CommissionPolicy {
 			data.put("description", commaSeparatedString);
 			data.put("period",period);
 			headerCommission = new Submission(formCommission.get_id(), data);
-			detailCommissions = createCommissionTrans(formCommissionTran, policyRef, beneficiaryRef, period, contracts, commissionPerContract);
-		}
-		return new BeneficiaryCommission(headerCommission, detailCommissions);
-	}
-	List<Submission> createCommissionTrans(FormioForm form, Map<String, String> policyRef, Map<String, String> beneficiaryRef, String period, 
-			List<Submission> contracts, Float commissionPerContract) {
-		List<Submission> commissionTrans = new ArrayList<Submission>();
-		Object comTranvalue = SubmissionUtil.getFieldValue(this.submission, COMMISSION_TRANS);
-		List<Map<String, Object>> commissionRounds = null;
-		if (comTranvalue instanceof List) {
-			commissionRounds = (List<Map<String, Object>>)comTranvalue;
-		}
-		if (commissionRounds != null) {
-			/*
-			 * Mỗi hợp đồng sinh ra số giao dịch bằng số lần được cấu hình,
-			 * Lần cuối là số tiền còn 
-			 */
-			for (Submission contract : contracts) {
-				Map<String, String> contractRef = SubmissionUtil.createReferenceMap(contract);
-				Float remainValue = commissionPerContract;
-				Map<String, Object> remainData = null;
-				for(Map<String, Object> round : commissionRounds) {
-					Object objValue = round.get("value");
-					Float value = (objValue instanceof Number) ? ((Number) objValue).floatValue() : null ;
-					if (value != null) {
-						remainValue -= value;
-						Map<String, Object> data = new HashMap<String, Object>(round);
-						data.put(COMMISSION_POLICY, policyRef);
-						data.put(COMMISSION_BENEFICIARY, beneficiaryRef);
-						data.put(COMMISSION_CONTRACT, contractRef);
-						data.put(COMMISSION_TRAN_STATUS, "temporary");
-						data.put("period",period);		
-						Submission comTran = new Submission(form.get_id(), data);
-						commissionTrans.add(comTran);
-					} else {
-						remainData = round;
-					}
-				}
-				if (remainValue > 0 && remainData != null ) {
-					Map<String, Object> data = new HashMap<String, Object>(remainData);
-					data.put(COMMISSION_POLICY, policyRef);
-					data.put(COMMISSION_BENEFICIARY, beneficiaryRef);
-					data.put(COMMISSION_CONTRACT, contractRef);
-					data.put(COMMISSION_TRAN_STATUS, "temporary");		
-					data.put("period",period);					
-					data.put("value", remainValue);
-					Submission comTran = new Submission(form.get_id(), data);
-					commissionTrans.add(comTran);
+			if (commissionRounds instanceof List) {
+				if (COMMISSION_PATTERN_BYCONTRACT.equalsIgnoreCase(pattern)) {
+					detailCommissions = createByContractCommissionTrans(formCommissionTran, (List<Map<String, Object>>)commissionRounds, policyRef, 
+						beneficiaryRef, period, contracts, commissionPerContract);
+				} else if (COMMISSION_PATTERN_ONETIME.equalsIgnoreCase(pattern)){
+					detailCommissions = createOnetimeCommissionTrans(formCommissionTran, (List<Map<String, Object>>)commissionRounds, policyRef, 
+							beneficiaryRef, period, contracts, commissionPerContract);
 				}
 			}
 		}
+		return new BeneficiaryCommission(headerCommission, detailCommissions);
+	}
+	List<Submission> createByContractCommissionTrans(FormioForm form, List<Map<String, Object>> commissionRounds, Map<String, String> policyRef, 
+			Map<String, String> beneficiaryRef, String period, List<Submission> contracts, Float commissionPerContract) {
+		List<Submission> commissionTrans = new ArrayList<Submission>();
+		/*
+		 * Mỗi hợp đồng sinh ra số giao dịch bằng số lần được cấu hình,
+		 * Lần cuối là số tiền còn 
+		 */
+		for (Submission contract : contracts) {
+			Map<String, String> contractRef = SubmissionUtil.createReferenceMap(contract);
+			Float remainValue = commissionPerContract;
+			Map<String, Object> remainData = null;
+			for(Map<String, Object> round : commissionRounds) {
+				Object objValue = round.get("value");
+				Float value = (objValue instanceof Number) ? ((Number) objValue).floatValue() : null ;
+				if (value != null) {
+					remainValue -= value;
+					Map<String, Object> data = new HashMap<String, Object>(round);
+					data.put(COMMISSION_POLICY, policyRef);
+					data.put(COMMISSION_BENEFICIARY, beneficiaryRef);
+					data.put(COMMISSION_CONTRACT, contractRef);
+					data.put(COMMISSION_TRAN_STATUS, "temporary");
+					data.put("period",period);		
+					Submission comTran = new Submission(form.get_id(), data);
+					commissionTrans.add(comTran);
+				} else {
+					remainData = round;
+				}
+			}
+			if (remainValue > 0 && remainData != null ) {
+				Map<String, Object> data = new HashMap<String, Object>(remainData);
+				data.put(COMMISSION_POLICY, policyRef);
+				data.put(COMMISSION_BENEFICIARY, beneficiaryRef);
+				data.put(COMMISSION_CONTRACT, contractRef);
+				data.put(COMMISSION_TRAN_STATUS, "temporary");		
+				data.put("period",period);					
+				data.put("value", remainValue);
+				Submission comTran = new Submission(form.get_id(), data);
+				commissionTrans.add(comTran);
+			}
+		}
+		return commissionTrans;
+	}
+	List<Submission> createOnetimeCommissionTrans(FormioForm form, List<Map<String, Object>> commissionRounds, Map<String, String> policyRef, 
+			Map<String, String> beneficiaryRef, String period, List<Submission> contracts, Float commissionPerContract) {
+		List<Submission> commissionTrans = new ArrayList<Submission>();
+		Float remainValue = commissionPerContract;
+		Map<String, Object> remainData = null;
+		for(Map<String, Object> round : commissionRounds) {
+			Object objValue = round.get("value");
+			Float value = (objValue instanceof Number) ? ((Number) objValue).floatValue() : null ;
+			if (value != null) {
+				remainValue -= value;
+				Map<String, Object> data = new HashMap<String, Object>(round);
+				data.put(COMMISSION_POLICY, policyRef);
+				data.put(COMMISSION_BENEFICIARY, beneficiaryRef);
+				data.put(COMMISSION_TRAN_STATUS, "temporary");
+				data.put("period",period);		
+				Submission comTran = new Submission(form.get_id(), data);
+				commissionTrans.add(comTran);
+			} else {
+				remainData = round;
+			}
+		}
+		if (remainValue > 0 && remainData != null ) {
+			Map<String, Object> data = new HashMap<String, Object>(remainData);
+			data.put(COMMISSION_POLICY, policyRef);
+			data.put(COMMISSION_BENEFICIARY, beneficiaryRef);
+			data.put(COMMISSION_TRAN_STATUS, "temporary");		
+			data.put("period",period);					
+			data.put("value", remainValue);
+			Submission comTran = new Submission(form.get_id(), data);
+			commissionTrans.add(comTran);
+		}
+		
 		return commissionTrans;
 	}
 	public static Submission mergeCommission(Submission dest, Submission update) {

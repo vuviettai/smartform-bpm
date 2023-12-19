@@ -50,9 +50,12 @@ public class CommissionService {
 			//2. Get all Contracts theo TVV trong thang truoc de xac dinh muc Hoa Hong cho TVV
 			params = commissionPolicy.prepareParamsContract(policyPeriod);
 			List<Submission> contracts = submissionUtil.getSubmissionsByFormName(commissionPolicy.getFormContract(), params);
+			if (contracts != null && contracts.size() > 0) {
+				submissionUtil.loadReferenceSubmissions(contracts);
+			}
 			List<String> contractIds = Utils.getContractIds(contracts);
-			
-			Map<Object, List<Submission>> mapGroups = SubmissionUtil.groupSubmissionsByField(contracts, CommissionPolicy.COMMISSION_TVV);
+			// Group contract by nguoi thu huong
+			Map<Object, List<Submission>> mapGroups = SubmissionUtil.groupSubmissionsByField(contracts, CommissionPolicy.CONTRACT_CONGTACVIEN);
 			List<Submission> listCommissions = new ArrayList<Submission>();
 			List<Submission> listCommissionTrans = new ArrayList<Submission>();
 			
