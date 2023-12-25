@@ -2,6 +2,7 @@ package com.smartform.resources;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +41,10 @@ public class FormioResource extends AbstractResource {
 
 	public static final String ACTION = "action";
 	public static final String OPEN_FORM_ID = "openformid";
+	public static final String FORM_USER = "formuser";
+	public static final String FORM_GROUP = "formgroup";
+	public static final String FORM_ROLE = "formrole";
+
 	@RestClient
 	FormioService formioService;
 
@@ -51,6 +56,29 @@ public class FormioResource extends AbstractResource {
 
 	@Inject
 	private SubmissionUtil submissionUtil;
+
+	// private FormioForm formUser;
+	// private FormioForm formGroup;
+	// private FormioForm formRole;
+
+	// @PostConstruct
+	// private void initUsersForms() {
+	// MultivaluedMap<String, String> params = new MultivaluedHashMap<String,
+	// String>();
+	// params.put("name__in", Arrays.asList(FORM_GROUP, FORM_ROLE, FORM_USER));
+	// List<FormioForm> response = formioService.queryForms(params);
+	// if (response != null && response.size() > 0) {
+	// for (FormioForm form : response) {
+	// if (FORM_GROUP.equalsIgnoreCase(form.getName())) {
+	// formGroup = form;
+	// } else if (FORM_ROLE.equalsIgnoreCase(form.getName())) {
+	// formRole = form;
+	// } else if (FORM_USER.equalsIgnoreCase(form.getName())) {
+	// formUser = form;
+	// }
+	// }
+	// }
+	// }
 
 	@Path("/{formId}")
 	@GET
@@ -72,8 +100,9 @@ public class FormioResource extends AbstractResource {
 		List<Submission> submissions = null;
 		RestResponse<List<Submission>> clientResponse = null;
 		try {
-			MultivaluedMap<String, String> queryParams = uriInfo.getQueryParameters();
+			MultivaluedMap<String, String> queryParams = uriInfo.getQueryParameters(); //parseQueryParams(formId, uriInfo);
 			// Map<String, String> filters = new HashMap<String, >();
+
 			clientResponse = formioService.getSubmissions(formId, queryParams);
 			submissions = clientResponse.getEntity();
 			if (submissions != null) {
@@ -96,6 +125,30 @@ public class FormioResource extends AbstractResource {
 		// }
 		// builder = builder.type(MediaType.APPLICATION_JSON);
 		return builder.build();
+	}
+
+	private MultivaluedMap<String, String> parseQueryParams(String formId, UriInfo uriInfo) {
+		MultivaluedMap<String, String> params = uriInfo.getQueryParameters();
+		if (params.size() > 0) {
+			MultivaluedMap<String, String> refFilters = new MultivaluedHashMap<>();
+			Map<String,String> mapFields = new HashMap<String, String>();
+			for (Map.Entry<String, List<String>> param : params.entrySet()) {
+				String key = param.getKey();
+				String[] parts = key.split(".data");
+				//Start with 'data.'
+				if (parts.length == 2) {
+					String fieldName = parts[0];
+					String refField = "data" + parts[1];
+					mapFields.put(fieldName, refField);
+					refFilters.put(refField, param.getValue());
+				}
+			}
+			if (refFilters.size() > 0) {
+				FormioForm formioForm = formioService.getForm(formId);
+				submissionUtil.loadReferenceSubmissions(formioForm, mapFields, refFilters);
+			}
+		}
+		return params;
 	}
 
 	@Path("/{formId}/submission")
@@ -191,14 +244,17 @@ public class FormioResource extends AbstractResource {
 				List<Submission> detailCommissions = null;
 				List<FormioForm> detailForms = formioService.queryForms(queryParams);
 				if (detailForms != null && detailForms.size() >= 1) {
-					RestResponse<List<Submission>> response = formioService.getSubmissions(detailForms.get(0).get_id(), null);
+					RestResponse<List<Submission>> response = formioService.getSubmissions(detailForms.get(0).get_id(),
+							null);
 					detailCommissions = response.getEntity();
 				}
 				if (detailCommissions != null && detailCommissions.size() > 0) {
 					// Load reference;
 					submissionUtil.loadReferenceSubmissions(detailCommissions);
-					Submission headerSubmission = (Submission)SubmissionUtil.getFieldValue(detailCommissions.get(0), "policy");
-					CommissionPolicy commissionPolicy = new CommissionPolicy(headerSubmission, detailCommissions, params);
+					Submission headerSubmission = (Submission) SubmissionUtil.getFieldValue(detailCommissions.get(0),
+							"policy");
+					CommissionPolicy commissionPolicy = new CommissionPolicy(headerSubmission, detailCommissions,
+							params);
 					result = commissionService.calculateCommision(commissionPolicy);
 				}
 			} catch (WebApplicationException e) {
