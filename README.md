@@ -66,3 +66,9 @@ Easily start your Reactive RESTful Web Services
 [Related guide section...](https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources)
 
 https://quarkus.io/guides/rest-client-reactive
+
+https://gist.github.com/thomasdarimont/c4e739c5a319cf78a4cff3b87173a84b
+
+
+User "idm-admin" needs at least "manage-users, view-clients, view-realm, view-users" roles for "realm-management"
+

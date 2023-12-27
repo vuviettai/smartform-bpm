@@ -2,7 +2,6 @@ package com.smartform.resources;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -98,6 +97,7 @@ public class FormioResource extends AbstractResource {
 	@Produces({ RestMediaType.APPLICATION_JSON })
 	public RestResponse<List<Submission>> getSubmissions(@RestPath String formId, @Context UriInfo uriInfo) {
 		List<Submission> submissions = null;
+		ResponseBuilder<List<Submission>> builder = null;
 		RestResponse<List<Submission>> clientResponse = null;
 		try {
 			MultivaluedMap<String, String> queryParams = uriInfo.getQueryParameters(); //parseQueryParams(formId, uriInfo);
@@ -113,11 +113,10 @@ public class FormioResource extends AbstractResource {
 				// }
 				// }
 			}
-
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
 		}
-		ResponseBuilder<List<Submission>> builder = createResponseBuilder(clientResponse);
+		builder = createResponseBuilder(clientResponse);
 
 		// for(Map.Entry<String, List<String>> header :
 		// clientResponse.getStringHeaders().entrySet()) {
@@ -127,29 +126,29 @@ public class FormioResource extends AbstractResource {
 		return builder.build();
 	}
 
-	private MultivaluedMap<String, String> parseQueryParams(String formId, UriInfo uriInfo) {
-		MultivaluedMap<String, String> params = uriInfo.getQueryParameters();
-		if (params.size() > 0) {
-			MultivaluedMap<String, String> refFilters = new MultivaluedHashMap<>();
-			Map<String,String> mapFields = new HashMap<String, String>();
-			for (Map.Entry<String, List<String>> param : params.entrySet()) {
-				String key = param.getKey();
-				String[] parts = key.split(".data");
-				//Start with 'data.'
-				if (parts.length == 2) {
-					String fieldName = parts[0];
-					String refField = "data" + parts[1];
-					mapFields.put(fieldName, refField);
-					refFilters.put(refField, param.getValue());
-				}
-			}
-			if (refFilters.size() > 0) {
-				FormioForm formioForm = formioService.getForm(formId);
-				submissionUtil.loadReferenceSubmissions(formioForm, mapFields, refFilters);
-			}
-		}
-		return params;
-	}
+//	private MultivaluedMap<String, String> parseQueryParams(String formId, UriInfo uriInfo) {
+//		MultivaluedMap<String, String> params = uriInfo.getQueryParameters();
+//		if (params.size() > 0) {
+//			MultivaluedMap<String, String> refFilters = new MultivaluedHashMap<>();
+//			Map<String,String> mapFields = new HashMap<String, String>();
+//			for (Map.Entry<String, List<String>> param : params.entrySet()) {
+//				String key = param.getKey();
+//				String[] parts = key.split(".data");
+//				//Start with 'data.'
+//				if (parts.length == 2) {
+//					String fieldName = parts[0];
+//					String refField = "data" + parts[1];
+//					mapFields.put(fieldName, refField);
+//					refFilters.put(refField, param.getValue());
+//				}
+//			}
+//			if (refFilters.size() > 0) {
+//				FormioForm formioForm = formioService.getForm(formId);
+//				submissionUtil.loadReferenceSubmissions(formioForm, mapFields, refFilters);
+//			}
+//		}
+//		return params;
+//	}
 
 	@Path("/{formId}/submission")
 	@POST

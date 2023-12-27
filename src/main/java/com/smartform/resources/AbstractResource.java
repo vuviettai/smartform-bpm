@@ -6,12 +6,16 @@ import java.util.Map;
 
 import org.jboss.resteasy.reactive.RestResponse;
 import org.jboss.resteasy.reactive.RestResponse.ResponseBuilder;
+import org.jboss.resteasy.reactive.RestResponse.Status;
 
 import io.vertx.core.http.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 
 public abstract class AbstractResource {
 	protected<T> ResponseBuilder<T> createResponseBuilder(RestResponse<T> clientResponse) {
+		if (clientResponse == null) {
+			return ResponseBuilder.<T>create(Status.INTERNAL_SERVER_ERROR);
+		}
 		T entity = clientResponse.getEntity();
 		if (entity == null) {
 			return ResponseBuilder.<T>noContent();

@@ -25,7 +25,6 @@ public class Submissions {
 	private Date modified;
 	private String owner;
 	private String[] roles;
-	private String _id;
 	
 	public List<Submission> toSubmissionList() {
 		List<Submission> list = new ArrayList<Submission>();
@@ -41,7 +40,9 @@ public class Submissions {
 				submission.setModified(modified);
 				submission.setOwner(owner);
 				submission.setRoles(roles);
-				submission.set_id(_id);
+				if (item.containsKey(Submission._ID)) {
+					submission.set_id(String.valueOf(item.get(Submission._ID)));
+				}
 				list.add(submission);
 			}
 		}
