@@ -126,30 +126,6 @@ public class FormioResource extends AbstractResource {
 		return builder.build();
 	}
 
-//	private MultivaluedMap<String, String> parseQueryParams(String formId, UriInfo uriInfo) {
-//		MultivaluedMap<String, String> params = uriInfo.getQueryParameters();
-//		if (params.size() > 0) {
-//			MultivaluedMap<String, String> refFilters = new MultivaluedHashMap<>();
-//			Map<String,String> mapFields = new HashMap<String, String>();
-//			for (Map.Entry<String, List<String>> param : params.entrySet()) {
-//				String key = param.getKey();
-//				String[] parts = key.split(".data");
-//				//Start with 'data.'
-//				if (parts.length == 2) {
-//					String fieldName = parts[0];
-//					String refField = "data" + parts[1];
-//					mapFields.put(fieldName, refField);
-//					refFilters.put(refField, param.getValue());
-//				}
-//			}
-//			if (refFilters.size() > 0) {
-//				FormioForm formioForm = formioService.getForm(formId);
-//				submissionUtil.loadReferenceSubmissions(formioForm, mapFields, refFilters);
-//			}
-//		}
-//		return params;
-//	}
-
 	@Path("/{formId}/submission")
 	@POST
 	public Submission createSubmission(@RestPath String formId, Submission submission) {

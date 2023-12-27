@@ -10,7 +10,6 @@ import org.jboss.resteasy.reactive.RestResponse;
 
 import com.smartform.models.SubmissionRef;
 import com.smartform.rest.client.FormioService;
-import com.smartform.rest.model.FormComponent;
 import com.smartform.rest.model.FormioForm;
 import com.smartform.rest.model.Submission;
 

@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 
 import com.smartform.domain.Service;
 import com.smartform.domain.User;
-import com.smartform.domain.dto.ServiceDto;
 import com.smartform.domain.dto.UserDto;
 import com.smartform.mapping.UserMapper;
 import com.smartform.repository.UserRepository;
