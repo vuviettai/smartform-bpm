@@ -78,7 +78,19 @@ public class FormioResource extends AbstractResource {
 	// }
 	// }
 	// }
-
+	@Path("")
+	@GET
+	public List<FormioForm> findForm(@Context UriInfo uriInfo) {
+		List<FormioForm> response = null;
+		MultivaluedMap<String, String> params = uriInfo.getPathParameters();
+		try {
+			response = formioService.queryForms(params);
+		} catch (WebApplicationException e) {
+			e.printStackTrace();
+		}
+		return response;
+	}
+	
 	@Path("/{formId}")
 	@GET
 	public FormioForm getForm(@RestPath String formId) {
