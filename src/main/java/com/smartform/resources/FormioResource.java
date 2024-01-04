@@ -33,6 +33,7 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 
 @Path("/form")
@@ -169,6 +170,22 @@ public class FormioResource extends AbstractResource {
 			}
 		}
 		return uploadedSubmissions;
+	}
+	
+	@Path("/{formId}/submission/delete")
+	@DELETE
+	public RestResponse<Object> deleteSubmissions(@RestPath String formId, List<String> submissionIds) {
+		if (submissionIds != null) {
+			for (String submissionId : submissionIds) {
+				try {
+					Submission deletedSubmission = formioService.deleteSubmission(formId, submissionId);
+				} catch (WebApplicationException e) {
+					e.printStackTrace();
+					return ResponseBuilder.serverError().build();
+				}
+			}
+		}
+		return ResponseBuilder.accepted().build();
 	}
 
 	@Path("/{formId}/submission/{submissionId}")
