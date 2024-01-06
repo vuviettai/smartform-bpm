@@ -7,18 +7,25 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.bson.Document;
+import org.bson.conversions.Bson;
+import org.bson.types.ObjectId;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.resteasy.reactive.RestPath;
 import org.jboss.resteasy.reactive.RestResponse;
+import org.jboss.resteasy.reactive.RestResponse.ResponseBuilder;
 
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.result.DeleteResult;
 import com.smartform.rest.client.FormioService;
 import com.smartform.rest.model.Submission;
-import com.smartform.rest.model.Submissions;
 
-import jakarta.ws.rs.POST;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
-import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 
@@ -27,7 +34,16 @@ public class MasterResource extends AbstractResource{
 
 	@RestClient
 	FormioService formioService;
-	
+	@Inject
+	MongoClient client;
+	@Path("/{formId}/deleteAll")
+	@DELETE
+	public RestResponse<DeleteResult> deleteAllSubmissions(@RestPath String formId) {
+		MongoCollection<Document> collection = getCollection("formio", "submissions");
+		Bson filter = Filters.eq("form", new ObjectId(formId));
+		DeleteResult result = collection.deleteMany(filter);
+		return ResponseBuilder.ok(result).build();
+	}
 	@Path("/{formId}/convertGeoInfoVn")
 	@PUT
 	public List<Submission> uploadSubmissions(@RestPath String formId, String destForm) {
@@ -35,14 +51,8 @@ public class MasterResource extends AbstractResource{
 		MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
 		params.putSingle("limit", String.valueOf(Integer.MAX_VALUE));
 		//Delete old data
-		RestResponse<List<Submission>> res = formioService.getSubmissions(destForm, params);
+		RestResponse<List<Submission>> res = formioService.getSubmissions(formId, params);
 		List<Submission> submissions = res.getEntity();
-		if (submissions != null && submissions.size() > 0) {
-			for(Submission submission : submissions) {
-				formioService.deleteSubmission(destForm, submission.get_id());
-			}
-		}
-		res = formioService.getSubmissions(formId, params);
 		submissions = res.getEntity();
 		if (submissions != null && submissions.size() > 0) {
 			Map<String, Submission> mapProvinces = new LinkedHashMap<String, Submission>();
@@ -114,5 +124,8 @@ public class MasterResource extends AbstractResource{
 			submission.getData().put("parent", parentData);
 		}
 		return submission;
+	}
+	public MongoCollection<Document> getCollection(String database, String collection) {
+		return client.getDatabase(database).getCollection(collection);
 	}
 }
