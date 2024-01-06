@@ -80,7 +80,7 @@ public class MasterResource extends AbstractResource{
 				Submission districtSub = mapDistricts.get(districtKey);
 				if (districtSub == null) {
 					districtSub = createSubmission(item, destForm, district, districtCode, "district", provinceSub);
-					districtSub = formioService.createSubmission(destForm, provinceSub);
+					districtSub = formioService.createSubmission(destForm, districtSub);
 					mapDistricts.put(districtKey, districtSub);
 				}
 				Submission wardSub = createSubmission(item, destForm, ward, wardCode, "ward", districtSub);
