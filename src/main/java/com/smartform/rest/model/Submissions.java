@@ -26,23 +26,27 @@ public class Submissions {
 	private String owner;
 	private String[] roles;
 	
+	public Submission createSubmission(Map<String, Object> data) {
+		Submission submission = new Submission();
+		submission.setData(data);
+		submission.setAccess(access);
+		submission.setCreated(created);
+		submission.setExternalIds(externalIds);
+		submission.setForm(form);
+		submission.setMetadata(metadata);
+		submission.setModified(modified);
+		submission.setOwner(owner);
+		submission.setRoles(roles);
+		if (data.containsKey(Submission._ID)) {
+			submission.set_id(String.valueOf(data.get(Submission._ID)));
+		}
+		return submission;
+	}
 	public List<Submission> toSubmissionList() {
 		List<Submission> list = new ArrayList<Submission>();
 		if (data != null) {
 			for (Map<String, Object> item : data) {
-				Submission submission = new Submission();
-				submission.setData(item);
-				submission.setAccess(access);
-				submission.setCreated(created);
-				submission.setExternalIds(externalIds);
-				submission.setForm(form);
-				submission.setMetadata(metadata);
-				submission.setModified(modified);
-				submission.setOwner(owner);
-				submission.setRoles(roles);
-				if (item.containsKey(Submission._ID)) {
-					submission.set_id(String.valueOf(item.get(Submission._ID)));
-				}
+				Submission submission = createSubmission(item);
 				list.add(submission);
 			}
 		}
