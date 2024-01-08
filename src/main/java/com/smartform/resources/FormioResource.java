@@ -11,6 +11,7 @@ import org.jboss.resteasy.reactive.RestResponse;
 import org.jboss.resteasy.reactive.RestResponse.ResponseBuilder;
 import org.jboss.resteasy.reactive.common.util.RestMediaType;
 
+import com.smartform.customize.handler.FormActionHandler;
 import com.smartform.customize.handler.SubmissionActionHandler;
 import com.smartform.models.ActionResult;
 import com.smartform.rest.client.FormioService;
@@ -50,6 +51,8 @@ public class FormioResource extends AbstractResource {
 	
 	@Inject
 	SubmissionActionHandler actionHandler;
+	@Inject
+	FormActionHandler formActionHandler;
 	
 	@Inject
 	private SubmissionUtil submissionUtil;
@@ -153,7 +156,16 @@ public class FormioResource extends AbstractResource {
 
 		return createdSubmission;
 	}
-
+	@Path("/{formId}/formAction")
+	@POST
+	public ActionResult callFormAction(@RestPath String formId,	Map<String, Object> params) {
+		ActionResult result = new ActionResult();
+		result.setName("formAction");
+		result.setFormId(formId);
+		result.setParams(params);
+		ActionResult handleResult = formActionHandler.handleAction(formId, params);
+		return result;
+	}
 	@Path("/{formId}/submission/upload")
 	@POST
 	public List<Submission> uploadSubmissions(@RestPath String formId, Submissions submissions) {

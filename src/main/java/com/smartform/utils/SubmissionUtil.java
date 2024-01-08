@@ -51,7 +51,20 @@ public class SubmissionUtil {
 		}
 		return result;
 	}
-
+	public Submission getLastSubmission(String formId, List<String> selectFields) {
+		MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
+		params.putSingle(FormioService.LIMIT, "1");
+		params.putSingle(FormioService.SORT, "-created");
+		if (selectFields != null) {
+			params.putSingle(FormioService.SELECT, String.join(",", selectFields));
+		}
+		RestResponse<List<Submission>> response = formioService.getSubmissions(formId, params);
+		List<Submission> entity = response.getEntity();
+		if (entity != null && entity.size() > 0) {
+			return entity.get(0);
+		}
+		return null;
+	}
 //	public List<Submission> getSubmissionsByFormName(String formName, MultivaluedMap<String, String> params) {
 //		List<Submission> result = null;
 //		FormioForm form = getFormByName(formName);
@@ -61,7 +74,14 @@ public class SubmissionUtil {
 //		}
 //		return result;
 //	}
-
+	public List<Submission> getSubmissionByIds(String formId, List<String> submissionIds) {
+		MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
+		for (String id : submissionIds) {
+			params.add("_id__in", id);
+		}
+		RestResponse<List<Submission>> response = formioService.getSubmissions(formId, params);
+		return response.getEntity();
+	}
 	/*
 	 * 2023-12-16 load reference by each field for all submissions.
 	 * This approach gives better performance

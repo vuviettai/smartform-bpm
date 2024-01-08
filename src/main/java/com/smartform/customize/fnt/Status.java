@@ -64,24 +64,22 @@ public class Status {
 		}
 	}
 	public enum Store {
-		UNSTORED(0),
-		ARRIVED(1),
-		NORMAL(2),
-		ABNORMAL(4),
-		READY(8),
-		DELIVERED(16);
-
-		public boolean equals(Integer val) {
-			return this.status == val;
-		}
+		CREATED("created"),
+		UNSTORED("unstored"),
+		ARRIVED("dave"),
+		NORMAL("binhthuong"),
+		ABNORMAL("khongbinhthuong"),
+		READY("sansang"),
+		DELIVERING("danggiao"),
+		DELIVERED("dagiao");
 
 		public boolean equals(String val) {
 			return String.valueOf(this.status) == val;
 		}
 
-		private int status;
+		private String status;
 
-		private Store(Integer status) {
+		private Store(String status) {
 			// TODO Auto-generated constructor stub
 			this.status = status;
 		}
@@ -91,7 +89,7 @@ public class Status {
 			return String.valueOf(status);
 		}
 
-		public Integer getValue() {
+		public String getValue() {
 			return this.status;
 		}
 
@@ -103,7 +101,31 @@ public class Status {
 			throw new IllegalArgumentException("Invalid literal " + literal);
 		}
 	}
+	public static enum DeliveryMethod {
+		FNT("fnt");
+		public boolean equals(String op) {
+			return this.method.equalsIgnoreCase(op);
+		}
 
+		private String method;
+		private DeliveryMethod(String method) {
+			// TODO Auto-generated constructor stub
+			this.method = method;
+		}
+
+		@Override
+		public String toString() {
+			return method;
+		}
+		public static DeliveryMethod fromString(String literal) throws IllegalArgumentException {
+			for (final DeliveryMethod type : DeliveryMethod.values()) {
+				if (type.equals(literal))
+					return type;
+			}
+			throw new IllegalArgumentException("Invalid literal " + literal);
+		}
+	}
+	
 	public static enum Shipment {
 		INITED("inited"),
 		PARTIALLY_SHIPPING("partiallyshipping"),

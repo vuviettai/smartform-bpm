@@ -33,13 +33,25 @@ public class Submission {
 	private String[] roles;
 	private String _id;
 	public Submission() {
+		super();
 		this.access = new ArrayList<String>();
 		this.created = new Date();
 		this.externalIds = new ArrayList<String>();
 		this.metadata = new Metadata();
 		this.roles = new String[] {};
 	}
+	public Submission(String form) {
+		super();
+		this.access = new ArrayList<String>();
+		this.created = new Date();
+		this.externalIds = new ArrayList<String>();
+		this.metadata = new Metadata();
+		this.roles = new String[] {};
+		this.form = form;
+		this.data = new HashMap<String, Object>();
+	}
 	public Submission(String form, Map<String, Object> data) {
+		super();
 		this.form = form;
 		this.data = data;
 		this.access = new ArrayList<String>();

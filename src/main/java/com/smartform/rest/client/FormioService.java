@@ -26,7 +26,9 @@ import jakarta.ws.rs.core.MultivaluedMap;
 @RegisterClientHeaders(FormioClientHeaderFactory.class)
 //@ClientHeaderParam(name = "X-Jwt-Token", value = "${formio.jwt-secret}")
 public interface FormioService {
-	
+	public static final String LIMIT 	= "limit";
+	public static final String SORT 	= "sort";
+	public static final String SELECT 	= "select";
 	@GET
 	@Path("{formId}")
 	FormioForm getForm(@PathParam("formId") String formId);
