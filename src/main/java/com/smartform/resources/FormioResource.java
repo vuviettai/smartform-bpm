@@ -11,8 +11,7 @@ import org.jboss.resteasy.reactive.RestResponse;
 import org.jboss.resteasy.reactive.RestResponse.ResponseBuilder;
 import org.jboss.resteasy.reactive.common.util.RestMediaType;
 
-import com.smartform.customize.vgec.CommissionPolicy;
-import com.smartform.customize.vgec.CommissionService;
+import com.smartform.customize.handler.SubmissionActionHandler;
 import com.smartform.models.ActionResult;
 import com.smartform.rest.client.FormioService;
 import com.smartform.rest.client.FormsflowService;
@@ -38,7 +37,6 @@ import jakarta.ws.rs.core.UriInfo;
 @Path("/form")
 public class FormioResource extends AbstractResource {
 
-	public static final String ACTION = "action";
 	public static final String OPEN_FORM_ID = "openformid";
 	public static final String FORM_USER = "formuser";
 	public static final String FORM_GROUP = "formgroup";
@@ -49,10 +47,10 @@ public class FormioResource extends AbstractResource {
 
 	@RestClient
 	FormsflowService formsflowService;
-
+	
 	@Inject
-	CommissionService commissionService;
-
+	SubmissionActionHandler actionHandler;
+	
 	@Inject
 	private SubmissionUtil submissionUtil;
 
@@ -78,7 +76,6 @@ public class FormioResource extends AbstractResource {
 	// }
 	// }
 	// }
-	@Path("")
 	@GET
 	public List<FormioForm> findForm(@Context UriInfo uriInfo) {
 		List<FormioForm> response = null;
@@ -112,9 +109,13 @@ public class FormioResource extends AbstractResource {
 		ResponseBuilder<List<Submission>> builder = null;
 		RestResponse<List<Submission>> clientResponse = null;
 		try {
-			MultivaluedMap<String, String> queryParams = uriInfo.getQueryParameters(); //parseQueryParams(formId, uriInfo);
+			MultivaluedMap<String, String> queryParams = new MultivaluedHashMap<String, String>(uriInfo.getQueryParameters()); //parseQueryParams(formId, uriInfo);
 			// Map<String, String> filters = new HashMap<String, >();
-
+			List<String> refFields = queryParams.remove("refField");
+			List<String> refIds = queryParams.remove("refId");
+			if (refFields != null && refFields.size() > 0 && refIds != null && refIds.size() > 0) {
+				queryParams.add(refFields.get(0), refIds.get(0));
+			}
 			clientResponse = formioService.getSubmissions(formId, queryParams);
 			submissions = clientResponse.getEntity();
 			if (submissions != null) {
@@ -239,31 +240,7 @@ public class FormioResource extends AbstractResource {
 		result.setFormId(formId);
 		result.setSubmissionId(submissionId);
 		result.setParams(params);
-		String action = (String) params.get(ACTION);
-		if (CommissionService.ACTION_CALCULATE.equalsIgnoreCase(action)) {
-			try {
-				MultivaluedMap<String, String> queryParams = new MultivaluedHashMap<String, String>();
-				queryParams.add("name", CommissionPolicy.FORM_DETAIL);
-				List<Submission> detailCommissions = null;
-				List<FormioForm> detailForms = formioService.queryForms(queryParams);
-				if (detailForms != null && detailForms.size() >= 1) {
-					RestResponse<List<Submission>> response = formioService.getSubmissions(detailForms.get(0).get_id(),
-							null);
-					detailCommissions = response.getEntity();
-				}
-				if (detailCommissions != null && detailCommissions.size() > 0) {
-					// Load reference;
-					submissionUtil.loadReferenceSubmissions(detailCommissions);
-					Submission headerSubmission = (Submission) SubmissionUtil.getFieldValue(detailCommissions.get(0),
-							"policy");
-					CommissionPolicy commissionPolicy = new CommissionPolicy(headerSubmission, detailCommissions,
-							params);
-					result = commissionService.calculateCommision(commissionPolicy);
-				}
-			} catch (WebApplicationException e) {
-				e.printStackTrace();
-			}
-		}
+		ActionResult handleResult = actionHandler.handleAction(formId, submissionId, params);
 		return result;
 	}
 

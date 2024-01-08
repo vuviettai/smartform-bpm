@@ -28,17 +28,21 @@ public class SubmissionUtil {
 	// this.formioService = formioService;
 	// }
 	//
-	public FormioForm getFormByName(String name) {
-		FormioForm result = null;
-		MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
-		params.add("name", name);
-		List<FormioForm> forms = formioService.queryForms(params);
-		if (forms != null && forms.size() > 0) {
-			result = forms.get(0);
-		}
+//	public FormioForm getFormByName(String name) {
+//		FormioForm result = null;
+//		MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
+//		params.add("name", name);
+//		List<FormioForm> forms = formioService.queryForms(params);
+//		if (forms != null && forms.size() > 0) {
+//			result = forms.get(0);
+//		}
+//		return result;
+//	}
+
+	public FormioForm getFormById(String formId) {
+		FormioForm result = formioService.getForm(formId);
 		return result;
 	}
-
 	public List<Submission> querySubmissionsByFormId(String formId, MultivaluedMap<String, String> params) {
 		List<Submission> result = null;
 		if (formId != null) {
@@ -48,15 +52,15 @@ public class SubmissionUtil {
 		return result;
 	}
 
-	public List<Submission> getSubmissionsByFormName(String formName, MultivaluedMap<String, String> params) {
-		List<Submission> result = null;
-		FormioForm form = getFormByName(formName);
-		if (form != null) {
-			RestResponse<List<Submission>> response = formioService.getSubmissions(form.get_id(), params);
-			result = response.getEntity();
-		}
-		return result;
-	}
+//	public List<Submission> getSubmissionsByFormName(String formName, MultivaluedMap<String, String> params) {
+//		List<Submission> result = null;
+//		FormioForm form = getFormByName(formName);
+//		if (form != null) {
+//			RestResponse<List<Submission>> response = formioService.getSubmissions(form.get_id(), params);
+//			result = response.getEntity();
+//		}
+//		return result;
+//	}
 
 	/*
 	 * 2023-12-16 load reference by each field for all submissions.

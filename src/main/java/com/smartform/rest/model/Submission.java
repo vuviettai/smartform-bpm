@@ -2,6 +2,7 @@ package com.smartform.rest.model;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -46,5 +47,13 @@ public class Submission {
 		this.externalIds = new ArrayList<String>();
 		this.metadata = new Metadata();
 		this.roles = new String[] {};
+	}
+	public void setField(String fieldName, Object value) {
+		if (data == null) {
+			this.data = new HashMap<String, Object>();
+		}
+		if (fieldName != null) {
+			this.data.put(fieldName, value);
+		}
 	}
 }

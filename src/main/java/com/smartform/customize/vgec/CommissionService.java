@@ -41,15 +41,18 @@ public class CommissionService {
 //		List<Submission> noptiens = submissionUtil.getSubmissionsByFormName(commissionPolicy.getFormNoptien(), params);
 		
 		//4. Sinh ra so tien hoa hong cho TVV theo ket qua cua thang truoc
-		String formCommissionName = commissionPolicy.getFormCommission();
-		FormioForm formBeneficiary = submissionUtil.getFormByName(commissionPolicy.getFormBeneficiary());
-		FormioForm formCommission = submissionUtil.getFormByName(formCommissionName);
-		FormioForm formCommissionTran = submissionUtil.getFormByName(commissionPolicy.getFormCommissionTran());
+//		FormioForm formBeneficiary = submissionUtil.getFormByName(commissionPolicy.getFormBeneficiary());
+//		FormioForm formCommission = submissionUtil.getFormByName(commissionPolicy.getFormCommission());
+//		FormioForm formCommissionTran = submissionUtil.getFormByName(commissionPolicy.getFormCommissionTran());
+		FormioForm formBeneficiary = submissionUtil.getFormById(commissionPolicy.getFormBeneficiary());
+		FormioForm formCommission = submissionUtil.getFormById(commissionPolicy.getFormCommission());
+		FormioForm formCommissionTran = submissionUtil.getFormById(commissionPolicy.getFormCommissionTran());
 		if (formCommission != null && formCommissionTran != null && formBeneficiary != null) {
 			String policyPeriod = commissionPolicy.getPolicyPeriod();
 			//2. Get all Contracts theo TVV trong thang truoc de xac dinh muc Hoa Hong cho TVV
 			params = commissionPolicy.prepareParamsContract(policyPeriod);
-			List<Submission> contracts = submissionUtil.getSubmissionsByFormName(commissionPolicy.getFormContract(), params);
+			//List<Submission> contracts = submissionUtil.getSubmissionsByFormName(commissionPolicy.getFormContract(), params);
+			List<Submission> contracts = submissionUtil.querySubmissionsByFormId(commissionPolicy.getFormContract(), params);
 			if (contracts != null && contracts.size() > 0) {
 				submissionUtil.loadReferenceSubmissions(contracts);
 			}

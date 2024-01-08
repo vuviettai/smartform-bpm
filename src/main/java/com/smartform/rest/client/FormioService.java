@@ -32,6 +32,7 @@ public interface FormioService {
 	FormioForm getForm(@PathParam("formId") String formId);
 	
 	@GET
+	@Path("")
 	List<FormioForm> queryForms(@RestQuery MultivaluedMap<String, String> queryParams);
 	
 	@GET
