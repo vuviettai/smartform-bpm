@@ -22,7 +22,7 @@ import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 
 public class CommissionPolicy {
-	public static final String FORM_DETAIL						= "commissionPolicyDetail";
+	public static final String FORM_DETAIL						= "form_commissionPolicyDetail";
 	public static final String FORM_BENEFICIARY 				= "form_congtacvien";
 	public static final String FORM_CONTRACT 					= "form_contract";
 	public static final String FORM_NOPTIEN 					= "form_noptien";
