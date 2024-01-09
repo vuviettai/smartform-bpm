@@ -29,7 +29,7 @@ public class FntService {
 	public static final String ACTION_NHAP_KHO = "nhapKho";
 	public static final String ACTION_XUAT_KHO = "xuatKho";
 	public static final String FORM_NHAP_KHO = "form_nhapKho";
-	public static final String FORM_XUAT_KHO = "nhapKho";
+	public static final String FORM_XUAT_KHO = "form_xuatKho";
 	public static final String FORM_HANG_NHAP_KHO = "form_hangNhapKho";
 	public static final String FORM_HANG_XUAT_KHO = "form_hangXuatKho";
 	public static final String SUBMISSION_IDS = "submissionIds";
@@ -107,7 +107,7 @@ public class FntService {
 		String formHangNhapKho = (String) requestParams.get(FORM_HANG_NHAP_KHO);
 		String formNhapKho = (String)requestParams.get(FORM_NHAP_KHO);
 		List<Submission> listHangVe = submissionUtil.getSubmissionByIds(formHangVe, submissionIds);
-		if (listHangVe.size() > 0) {
+		if (listHangVe.size() > 0 && formNhapKho != null && formHangNhapKho != null) {
 			List<String> maNhapKho = createImportCodes(formNhapKho, 1);
 			Submission firstItem = listHangVe.get(0);
 			createdMaster = new Submission(formNhapKho);
@@ -148,10 +148,10 @@ public class FntService {
 		List<Submission> createdDetails = new ArrayList<Submission>();
 		List<String> submissionIds = (List<String>)requestParams.get(SUBMISSION_IDS);
 		List<Submission> listPackages = submissionUtil.getSubmissionByIds(formHangTrongKho, submissionIds);
-		if (listPackages.size() > 0) {
+		String formHangXuatKho = (String) requestParams.get(FORM_HANG_XUAT_KHO);
+		String formXuatKho = (String)requestParams.get(FORM_XUAT_KHO);
+		if (listPackages.size() > 0 && formXuatKho != null && formHangXuatKho != null) {
 			Submission firstItem = listPackages.get(0);
-			String formHangXuatKho = (String) requestParams.get(FORM_HANG_XUAT_KHO);
-			String formXuatKho = (String)requestParams.get(FORM_XUAT_KHO);
 			List<String> exportCodes = createExportCodes(formXuatKho, 1);
 			createdMaster = new Submission(formXuatKho);
 			createdMaster.setField("exportDate", new Date());
