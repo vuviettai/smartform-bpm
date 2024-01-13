@@ -32,6 +32,7 @@ public class Submission {
 	private String owner;
 	private String[] roles;
 	private String _id;
+	private Map<String, Object> extraParams;
 	public Submission() {
 		super();
 		this.access = new ArrayList<String>();
@@ -67,5 +68,8 @@ public class Submission {
 		if (fieldName != null) {
 			this.data.put(fieldName, value);
 		}
+	}
+	public Object getExtraValue(String field) {
+		return extraParams != null ? extraParams.get(field) : null;
 	}
 }

@@ -1,5 +1,6 @@
 package com.smartform.customize.handler;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -11,7 +12,6 @@ import com.smartform.customize.vgec.CommissionPolicy;
 import com.smartform.customize.vgec.CommissionService;
 import com.smartform.models.ActionResult;
 import com.smartform.rest.client.FormioService;
-import com.smartform.rest.model.FormioForm;
 import com.smartform.rest.model.Submission;
 import com.smartform.utils.SubmissionUtil;
 
@@ -29,6 +29,7 @@ import jakarta.ws.rs.core.MultivaluedMap;
 @ApplicationScoped
 public class SubmissionActionHandler {
 	public static final String ACTION = "action";
+	
 	@RestClient
 	FormioService formioService;
 	@Inject
@@ -72,6 +73,33 @@ public class SubmissionActionHandler {
 		}
 		if (FntService.ACTION_GENERATE_PACKAGE.equalsIgnoreCase(actionName)) {
 			fntService.generatePackage(formId, submissionId, params);
+		}
+		return result;
+	}
+	
+	public ActionResult prepareSubmission(String formId, Submission submission, String customAction) {
+		ActionResult result = new ActionResult();
+		if (FntService.ACTION_SUBMIT_RECEIPT.equalsIgnoreCase(customAction)) {
+			//Generate receiptCode
+			String dataField = "receiptCode";
+			List<String> receiptCodes = fntService.generateDataFieldCode(formId, dataField, FntService.PREFIX_RECEIPT, FntService.RECEIPT_CODE_LENGTH, 1);
+			if (receiptCodes != null && receiptCodes.size() == 1) {
+				submission.setField(dataField, receiptCodes);
+			}
+		}
+		return result;
+	}
+	public ActionResult onSubmissionCreated(String formId, Submission submission, String customAction) {
+		ActionResult result = new ActionResult();
+		if (FntService.ACTION_SUBMIT_RECEIPT.equalsIgnoreCase(customAction)) {
+			result = fntService.onReceiptCreated(formId, submission);
+		}
+		return result;
+	}
+	public ActionResult onSubmissionUpdated(String formId, Submission submission, String customAction) {
+		ActionResult result = new ActionResult();
+		if (FntService.ACTION_SUBMIT_RECEIPT.equalsIgnoreCase(customAction)) {
+			result = fntService.onReceiptUpdated(formId, submission);
 		}
 		return result;
 	}

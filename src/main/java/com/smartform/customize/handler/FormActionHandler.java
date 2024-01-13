@@ -22,6 +22,7 @@ import jakarta.inject.Inject;
 public class FormActionHandler {
 	public static final String ACTION = "action";
 	@RestClient
+	@Inject
 	FormioService formioService;
 	@Inject
 	SubmissionUtil submissionUtil;

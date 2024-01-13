@@ -12,6 +12,7 @@ import com.smartform.rest.client.FormsflowService;
 import com.smartform.rest.model.Formsflow;
 import com.smartform.rest.model.FormsflowPage;
 
+import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.QueryParam;
@@ -22,9 +23,11 @@ public class FormResource {
 	public static String FORM_TYPE_FORM = "form";
 	public static String FORM_TYPE_RESOURCE = "resource";
 	@RestClient 
+	@Inject
     FormioService formioService;
 	
 	@RestClient 
+	@Inject
     FormsflowService formsflowService;
 	
 	@GET

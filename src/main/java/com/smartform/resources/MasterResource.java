@@ -33,7 +33,9 @@ import jakarta.ws.rs.core.MultivaluedMap;
 public class MasterResource extends AbstractResource{
 
 	@RestClient
+	@Inject
 	FormioService formioService;
+	
 	@Inject
 	MongoClient client;
 	@Path("/{formId}/deleteAll")
@@ -57,10 +59,6 @@ public class MasterResource extends AbstractResource{
 		if (submissions != null && submissions.size() > 0) {
 			Map<String, Submission> mapProvinces = new LinkedHashMap<String, Submission>();
 			Map<String, Submission> mapDistricts = new LinkedHashMap<String, Submission>();
-			//Map between district with it's parent
-			Map<Submission, Submission> mapDistrict = new LinkedHashMap<Submission, Submission>();
-			//Map between ward with it's parent
-			Map<Submission, Submission> mapWards = new LinkedHashMap<Submission, Submission>();
 			//Store Province
 			for(Submission item : submissions) {
 				Map<String, Object> itemData = item.getData();

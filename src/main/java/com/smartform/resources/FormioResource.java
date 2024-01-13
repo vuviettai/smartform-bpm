@@ -44,9 +44,11 @@ public class FormioResource extends AbstractResource {
 	public static final String FORM_ROLE = "formrole";
 
 	@RestClient
+	@Inject
 	FormioService formioService;
 
 	@RestClient
+	@Inject
 	FormsflowService formsflowService;
 	
 	@Inject
@@ -142,14 +144,20 @@ public class FormioResource extends AbstractResource {
 		return builder.build();
 	}
 
-	@Path("/{formId}/submission")
+	@Path("/{formId}/submission/{customAction}")
 	@POST
-	public Submission createSubmission(@RestPath String formId, Submission submission) {
+	public Submission createSubmission(@RestPath String formId, Submission submission, String customAction) {
 		Submission createdSubmission = null;
 		// Formsflow formsflow = null;
 		try {
 			// formsflow = formsflowService.getById(formId);
+			if(customAction != null) {
+				actionHandler.prepareSubmission(formId, submission, customAction);
+			} 
 			createdSubmission = formioService.createSubmission(formId, submission);
+			if(customAction != null) {
+				actionHandler.onSubmissionCreated(formId, createdSubmission, customAction);
+			} 
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
 		}
@@ -217,12 +225,18 @@ public class FormioResource extends AbstractResource {
 		return submission;
 	}
 
-	@Path("/{formId}/submission/{submissionId}")
+	@Path("/{formId}/submission/{submissionId}/{customAction}")
 	@PUT
-	public Submission putSubmission(@RestPath String formId, @RestPath String submissionId, Submission submission) {
+	public Submission putSubmission(@RestPath String formId, @RestPath String submissionId, Submission submission, String customAction) {
 		Submission updated = null;
 		try {
+			if(customAction != null) {
+				actionHandler.prepareSubmission(formId, submission, customAction);
+			}
 			updated = formioService.putSubmission(formId, submissionId, submission);
+			if(customAction != null) {
+				actionHandler.onSubmissionUpdated(formId, updated, customAction);
+			}
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
 		}

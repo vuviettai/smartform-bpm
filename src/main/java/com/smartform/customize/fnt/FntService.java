@@ -19,6 +19,8 @@ import com.smartform.utils.SubmissionUtil;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.core.MultivaluedHashMap;
+import jakarta.ws.rs.core.MultivaluedMap;
 
 @ApplicationScoped
 public class FntService {
@@ -26,13 +28,18 @@ public class FntService {
 	public static final int RECEIPT_CODE_LENGTH = 5;
 	public static final int PACKAGE_CODE_LENGTH = 3;
 	public static final String ACTION_GENERATE_PACKAGE = "generatePackage";
+	public static final String ACTION_SUBMIT_RECEIPT = "submitReceipt";
 	public static final String ACTION_NHAP_KHO = "nhapKho";
 	public static final String ACTION_XUAT_KHO = "xuatKho";
+	public static final String FORM_PACKAGE = "form_package";
 	public static final String FORM_NHAP_KHO = "form_nhapKho";
 	public static final String FORM_XUAT_KHO = "form_xuatKho";
 	public static final String FORM_HANG_NHAP_KHO = "form_hangNhapKho";
 	public static final String FORM_HANG_XUAT_KHO = "form_hangXuatKho";
 	public static final String SUBMISSION_IDS = "submissionIds";
+	public static final String PARAM_CREATING_FORM_ID = "createFormId";
+	public static final String PARAM_START_INDEX = "startIndex";
+	public static final String PARAM_END_INDEX = "endIndex";
     public static final String PREFIX_XUAT_KHO = "";
     public static final String PREFIX_NHAP_KHO = "";
     public static final String PREFIX_RECEIPT = "";
@@ -43,7 +50,9 @@ public class FntService {
 	
 	@Inject
 	private SubmissionUtil submissionUtil;
+	
 	@RestClient
+	@Inject
 	FormioService formioService;
 	
 	public List<Submission> generatePackage(String formId, String submissionId, Map<String, Object> requestParams) {
@@ -53,24 +62,40 @@ public class FntService {
 		formioService.putSubmission(formId, receipt.get_id(), receipt);
 		String createFormId = (String)requestParams.get("createFormId");
 		if (createFormId != null ) {
-			List<Submission> listPackages = createPackages(receipt);
-			for(Submission packageSub : listPackages) {
-				Submission createdPackage = formioService.createSubmission(createFormId, packageSub);
-				createdPackages.add(createdPackage);
+			int start = 1, end = 0;
+			Object value = requestParams.get(PARAM_START_INDEX);
+			if (value instanceof Number) {
+				start = ((Number)value).intValue();
+			}
+			value = requestParams.get(PARAM_END_INDEX);
+			if (value == null) {
+				value = SubmissionUtil.getFieldValue(receipt, "packageCounter");
+			}
+			if (value instanceof Number) {
+				end = ((Number)value).intValue();
+			} 	
+			if (end > start) {
+			List<Submission> listPackages = createPackages(receipt, start, end);
+				for(Submission packageSub : listPackages) {
+					Submission createdPackage = formioService.createSubmission(createFormId, packageSub);
+					createdPackages.add(createdPackage);
+				}
 			}
 		}
 		return createdPackages;
 	}
-	private List<Submission> createPackages(Submission receipt) {
+	/*
+	 * Sinh package co index tu start toi end (bao gom ca end)
+	 * Su dung ca trong truong hop update packageNumber len
+	 */
+	private List<Submission> createPackages(Submission receipt, int start, int end) {
 		List<Submission> result = new ArrayList<Submission>();
-		Object value = SubmissionUtil.getFieldValue(receipt, "packageCounter");
-		if (value instanceof Number) {
-			for(int ind = 1; ind <= ((Number)value).intValue(); ind++) {
-				Submission receiptPackage = createPackage(receipt, ind);
-				receiptPackage.setField("totalPackage", value);
-				result.add(receiptPackage);
-			}
+		for(int ind = start; ind <= end; ind++) {
+			Submission receiptPackage = createPackage(receipt, ind);
+			receiptPackage.setField("totalPackage", end);
+			result.add(receiptPackage);
 		}
+	
 		return result;
 	}
 	private Submission createPackage(Submission receipt, Integer ind) {
@@ -79,11 +104,69 @@ public class FntService {
 		String packageCode = createPackageCode(receiptCode, ind);
 		pkgEntity.setField("packageCode", packageCode);
 		pkgEntity.setField("receipt", Map.of(Submission.FORM, receipt.getForm(), Submission._ID, receipt.get_id()));
-		for(String field: new String[]{"partner","detail", "receiptCode"}) {
+		String[] fields = new String[]{"partner","detail", "receiptCode","serviceType","recipient","province","district","ward","address", "node"};
+		for(String field: fields) {
 			pkgEntity.setField(field, SubmissionUtil.getFieldValue(receipt, field));
 		}
 		pkgEntity.setField("status", Status.Packing.INITED.toValue());
 		return pkgEntity;
+	}
+	public ActionResult onReceiptCreated(String formId, Submission receipt) {
+		ActionResult result = new ActionResult();
+		Object formPackageId = receipt.getExtraValue(FntService.PARAM_CREATING_FORM_ID);
+		if (formPackageId != null) {
+			Map<String, Object> params = Map.of(FntService.PARAM_CREATING_FORM_ID, formPackageId);
+			generatePackage(receipt.getForm(), receipt.get_id(), params);
+		}
+		return result;
+	}
+	public ActionResult onReceiptUpdated(String formId, Submission receipt) {
+		ActionResult result = new ActionResult();
+		String formPackageId = (String)receipt.getExtraValue(FntService.PARAM_CREATING_FORM_ID);
+		if (formPackageId != null) {
+			Object counter = SubmissionUtil.getFieldValue(receipt, "packageCounter");
+			Integer packageCounter = 0;
+			if (counter instanceof Number) {
+				packageCounter = ((Number)counter).intValue();
+			}
+			MultivaluedMap<String, String> queryParams = new MultivaluedHashMap<String, String>();
+			Map<String, Object> params = Map.of(FntService.PARAM_CREATING_FORM_ID, formPackageId);
+			queryParams.putSingle("data.receiptCode._id", receipt.get_id());
+			List<Submission> listPackages = formioService.getSubmissions((String)formPackageId, queryParams).getEntity();
+			if (listPackages == null || listPackages.size() == 0) {
+				generatePackage(receipt.getForm(), receipt.get_id(), params);
+			} else if (listPackages.size() > packageCounter) {
+				//Delete extra packages
+				String receiptCode = (String)SubmissionUtil.getFieldValue(receipt, "receiptCode");
+				for (Submission pkg : listPackages) {
+					String pkgCode = (String) SubmissionUtil.getFieldValue(pkg, "packageCode");
+					String pkgIndex = pkgCode != null ? pkgCode.substring(receiptCode.length() + StringUtil.SEPARATOR_CODE.length()) : null;
+					if (pkgIndex != null) {
+						try {
+							int ind = Integer.parseInt(pkgIndex);
+							if (ind <= packageCounter) {
+								pkg.setField("totalPackage", packageCounter);
+								formioService.putSubmission(formPackageId, pkg.get_id(), pkg);
+							} else {
+								formioService.deleteSubmission(formPackageId, pkg.get_id());
+							}
+						} catch(Exception e) {
+							e.printStackTrace();
+						}
+					}
+				}
+				//And update field TotalPackage of remain Packages
+			} else if (listPackages.size() < packageCounter) {
+				//Generate extra packages
+				params.put(FntService.PARAM_START_INDEX, listPackages.size() + 1);
+				params.put(FntService.PARAM_END_INDEX, packageCounter);
+				generatePackage(receipt.getForm(), receipt.get_id(), params);
+				for (Submission pkg : listPackages) {
+					pkg.setField("totalPackage", packageCounter);
+				}
+			}
+		}
+		return result;
 	}
 	private String createPackageCode(String receiptCode, Integer index) {
 		String result = "";
@@ -185,31 +268,28 @@ public class FntService {
 	}
 	
 	//Todo: for large system need some locking methods
-	private List<String> createReceiptCode(String formReceipt, int counter) {
+	public List<String> generateDataFieldCode(String formId, String fieldName, String prefix, int length, int counter) {
 		List<String> result = new ArrayList<String>();
-		Submission lastSubmission = submissionUtil.getLastSubmission(formReceipt, Arrays.asList("data.receiptCode"));
-		String lastCode = (lastSubmission != null) ? (String)SubmissionUtil.getFieldValue(lastSubmission, "receiptCode") : null;
-		Integer lastSequence = parseLastCode(lastCode, PREFIX_RECEIPT);
-		result = genCodes(PREFIX_RECEIPT, COMMON_CODE_LENGTH, lastSequence, counter);
-		
-		return result;
-	}
-	private List<String> createImportCodes(String formNhapKho, int counter) {
-		List<String> result = new ArrayList<String>();
-		Submission lastSubmission = submissionUtil.getLastSubmission(formNhapKho, Arrays.asList("data.importCode"));
-		String lastCode = (lastSubmission != null) ? (String)SubmissionUtil.getFieldValue(lastSubmission, "importCode") : null;
-		Integer lastSequence = parseLastCode(lastCode, PREFIX_NHAP_KHO);
-		result = genCodes(PREFIX_NHAP_KHO, COMMON_CODE_LENGTH, lastSequence, counter);
+		Submission lastSubmission = submissionUtil.getLastSubmission(formId, Arrays.asList("data." + fieldName));
+		String lastCode = (lastSubmission != null) ? (String)SubmissionUtil.getFieldValue(lastSubmission, fieldName) : null;
+		Integer lastSequence = parseLastCode(lastCode, prefix);
+		result = genCodes(prefix, length, lastSequence, counter);
 		
 		return result;
 	}
 	
-	private  List<String> createExportCodes(String formXuatKho, int counter) {
-		List<String> result = new ArrayList<String>();
-		Submission lastSubmission = submissionUtil.getLastSubmission(formXuatKho, Arrays.asList("data.exportCode"));
-		String lastCode = (lastSubmission != null) ? (String)SubmissionUtil.getFieldValue(lastSubmission, "exportCode") : null;
-		Integer lastSequence = parseLastCode(lastCode, PREFIX_XUAT_KHO);
-		result = genCodes(PREFIX_XUAT_KHO, COMMON_CODE_LENGTH, lastSequence, counter);
+	public List<String> createReceiptCode(String formReceipt, int counter) {
+		List<String> result = generateDataFieldCode(formReceipt, "receiptCode", PREFIX_RECEIPT, RECEIPT_CODE_LENGTH, counter);		
+		return result;
+	}
+	public List<String> createImportCodes(String formNhapKho, int counter) {
+		List<String> result = generateDataFieldCode(formNhapKho, "importCode", PREFIX_NHAP_KHO, COMMON_CODE_LENGTH, counter);		
+		
+		return result;
+	}
+	
+	public  List<String> createExportCodes(String formXuatKho, int counter) {
+		List<String> result = generateDataFieldCode(formXuatKho, "exportCode", PREFIX_XUAT_KHO, COMMON_CODE_LENGTH, counter);
 		return result;
 	}
 	/*
