@@ -1,6 +1,5 @@
 package com.smartform.customize.handler;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,6 +30,7 @@ public class SubmissionActionHandler {
 	public static final String ACTION = "action";
 	
 	@RestClient
+	@Inject
 	FormioService formioService;
 	@Inject
 	SubmissionUtil submissionUtil;
@@ -72,7 +72,10 @@ public class SubmissionActionHandler {
 			}
 		}
 		if (FntService.ACTION_GENERATE_PACKAGE.equalsIgnoreCase(actionName)) {
-			fntService.generatePackage(formId, submissionId, params);
+			Submission receipt = formioService.getSubmission(formId, submissionId);
+			if (receipt != null) {
+				fntService.generatePackage(receipt, params);
+			}
 		}
 		return result;
 	}
@@ -81,10 +84,13 @@ public class SubmissionActionHandler {
 		ActionResult result = new ActionResult();
 		if (FntService.ACTION_SUBMIT_RECEIPT.equalsIgnoreCase(customAction)) {
 			//Generate receiptCode
-			String dataField = "receiptCode";
-			List<String> receiptCodes = fntService.generateDataFieldCode(formId, dataField, FntService.PREFIX_RECEIPT, FntService.RECEIPT_CODE_LENGTH, 1);
-			if (receiptCodes != null && receiptCodes.size() == 1) {
-				submission.setField(dataField, receiptCodes);
+			String dataField = "maLoFnt";
+			String currentValue = (String)SubmissionUtil.getFieldValue(submission, dataField);
+			if (currentValue == null || currentValue.isEmpty()) {
+				List<String> receiptCodes = fntService.generateDataFieldCode(formId, dataField, FntService.PREFIX_RECEIPT, FntService.RECEIPT_CODE_LENGTH, 1, null, "YY");
+				if (receiptCodes != null && receiptCodes.size() == 1) {
+					submission.setField(dataField, receiptCodes.get(0));
+				}
 			}
 		}
 		return result;

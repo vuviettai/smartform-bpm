@@ -31,6 +31,36 @@ public class Status {
 			throw new IllegalArgumentException("Invalid value " + value);
 		}
 	}
+	public static enum LoHangVe {
+		INCOMMING("incomming"),
+		WAITING("waiting"),
+		IMPORTED("imported"),
+		PARTLY_IMPORTED("partlyImported"),
+		FINISHED("finished");
+
+		public boolean equals(String value) {
+			return this.value.equalsIgnoreCase(value);
+		}
+
+		private String value;
+
+		private LoHangVe(String value) {
+			// TODO Auto-generated constructor stub
+			this.value = value;
+		}
+
+		public String toValue() {
+			return value;
+		}
+
+		public static LoHangVe fromValue(String value) throws IllegalArgumentException {
+			for (final LoHangVe elm : LoHangVe.values()) {
+				if (elm.equals(value))
+					return elm;
+			}
+			throw new IllegalArgumentException("Invalid value " + value);
+		}
+	}
 	public enum Issue {
 		OPENED("opened"),
 		CLOSED("closed");

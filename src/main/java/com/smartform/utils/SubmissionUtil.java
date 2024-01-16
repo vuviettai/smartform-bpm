@@ -74,6 +74,11 @@ public class SubmissionUtil {
 //		}
 //		return result;
 //	}
+	public Submission getSubmissionById(String formId, String submissionId) {
+		if (formId == null || submissionId == null) return null;
+		Submission submission = formioService.getSubmission(formId, submissionId);
+		return submission;
+	}
 	public List<Submission> getSubmissionByIds(String formId, List<String> submissionIds) {
 		MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
 		for (String id : submissionIds) {
@@ -112,7 +117,8 @@ public class SubmissionUtil {
 		// Todo: Send references to client for better performance
 		for (Map.Entry<String, List<String>> entry : mapRefSubmissionIds.entrySet()) {
 			MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
-			params.put(Submission._ID, entry.getValue());
+			params.put(Submission._ID + "__in", entry.getValue());
+			params.putSingle("limit", String.valueOf(entry.getValue().size()));
 			List<Submission> listReferences = querySubmissionsByFormId(entry.getKey(), params);
 			mapReferenceSubmissions.put(entry.getKey(), listReferences);
 		}

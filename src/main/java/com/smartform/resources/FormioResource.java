@@ -143,10 +143,24 @@ public class FormioResource extends AbstractResource {
 		// builder = builder.type(MediaType.APPLICATION_JSON);
 		return builder.build();
 	}
+	@Path("/{formId}/submission")
+	@POST
+	public Submission createSubmission(@RestPath String formId, Submission submission) {
+		Submission createdSubmission = null;
+		// Formsflow formsflow = null;
+		try {
+			// formsflow = formsflowService.getById(formId);
+			createdSubmission = formioService.createSubmission(formId, submission);
+		} catch (WebApplicationException e) {
+			e.printStackTrace();
+		}
 
+		return createdSubmission;
+	}
+	
 	@Path("/{formId}/submission/{customAction}")
 	@POST
-	public Submission createSubmission(@RestPath String formId, Submission submission, String customAction) {
+	public Submission createSubmission(@RestPath String formId, @RestPath String customAction, Submission submission) {
 		Submission createdSubmission = null;
 		// Formsflow formsflow = null;
 		try {
@@ -156,6 +170,8 @@ public class FormioResource extends AbstractResource {
 			} 
 			createdSubmission = formioService.createSubmission(formId, submission);
 			if(customAction != null) {
+				createdSubmission.setExtraParams(submission.getExtraParams());
+				submissionUtil.loadReferenceSubmissions(Arrays.asList(createdSubmission));
 				actionHandler.onSubmissionCreated(formId, createdSubmission, customAction);
 			} 
 		} catch (WebApplicationException e) {
@@ -225,18 +241,28 @@ public class FormioResource extends AbstractResource {
 		return submission;
 	}
 
-	@Path("/{formId}/submission/{submissionId}/{customAction}")
+	@Path("/{formId}/submission/{submissionId}")
 	@PUT
-	public Submission putSubmission(@RestPath String formId, @RestPath String submissionId, Submission submission, String customAction) {
+	public Submission putSubmission(@RestPath String formId, @RestPath String submissionId, Submission submission) {
 		Submission updated = null;
 		try {
-			if(customAction != null) {
-				actionHandler.prepareSubmission(formId, submission, customAction);
-			}
 			updated = formioService.putSubmission(formId, submissionId, submission);
-			if(customAction != null) {
-				actionHandler.onSubmissionUpdated(formId, updated, customAction);
-			}
+		} catch (WebApplicationException e) {
+			e.printStackTrace();
+		}
+
+		return updated;
+	}
+	
+	@Path("/{formId}/submission/{submissionId}/{customAction}")
+	@PUT
+	public Submission putSubmission(@RestPath String formId, @RestPath String submissionId, @RestPath String customAction, Submission submission) {
+		Submission updated = null;
+		try {
+			actionHandler.prepareSubmission(formId, submission, customAction);
+			updated = formioService.putSubmission(formId, submissionId, submission);
+			updated.setExtraParams(submission.getExtraParams());
+			actionHandler.onSubmissionUpdated(formId, updated, customAction);
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
 		}
