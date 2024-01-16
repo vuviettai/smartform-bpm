@@ -5,6 +5,7 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -105,7 +106,12 @@ public class FntService {
 		String packageCode = createPackageCode(receiptCode, ind);
 		pkgEntity.setField("packageCode", packageCode);
 		pkgEntity.setField("loFnt", Map.of(Submission.FORM, receipt.getForm(), Submission._ID, receipt.get_id()));
-		String[] fields = new String[]{"partner","detail","maLoFnt","serviceType","recipient", "address", "note"};
+		setPackageData(pkgEntity, receipt);
+		pkgEntity.setField("status", Status.Packing.INITED.toValue());
+		return pkgEntity;
+	}
+	private void setPackageData(Submission pkgEntity, Submission receipt) {
+		String[] fields = new String[]{"partner","detail","maLoFnt","serviceType","recipient", "recipientPhone", "address", "note"};
 		for(String field: fields) {
 			pkgEntity.setField(field, SubmissionUtil.getFieldValue(receipt, field));
 		}
@@ -120,8 +126,6 @@ public class FntService {
 			}
 			
 		}
-		pkgEntity.setField("status", Status.Packing.INITED.toValue());
-		return pkgEntity;
 	}
 	public ActionResult onReceiptCreated(String formId, Submission receipt) {
 		ActionResult result = new ActionResult();
@@ -142,26 +146,28 @@ public class FntService {
 				packageCounter = ((Number)counter).intValue();
 			}
 			MultivaluedMap<String, String> queryParams = new MultivaluedHashMap<String, String>();
-			Map<String, Object> params = Map.of(FntService.PARAM_CREATING_FORM_ID, formPackageId);
-			queryParams.putSingle("form", formPackageId);
-			queryParams.putSingle("data.maLoFnt._id", receipt.get_id());
+			Map<String, Object> params = new HashMap<String, Object>();
+			params.put(FntService.PARAM_CREATING_FORM_ID, formPackageId);
+			//queryParams.putSingle("form", formPackageId);
+			queryParams.putSingle("data.loFnt._id", receipt.get_id());
 			List<Submission> listPackages = formioService.getSubmissions((String)formPackageId, queryParams).getEntity();
 			if (listPackages == null || listPackages.size() == 0) {
 				generatePackage(receipt, params);
 			} else if (listPackages.size() > packageCounter) {
 				//Delete extra packages
-				String receiptCode = (String)SubmissionUtil.getFieldValue(receipt, "receiptCode");
-				for (Submission pkg : listPackages) {
-					String pkgCode = (String) SubmissionUtil.getFieldValue(pkg, "packageCode");
+				String receiptCode = (String)SubmissionUtil.getFieldValue(receipt, "maLoFnt");
+				for (Submission pkgEntity : listPackages) {
+					String pkgCode = (String) SubmissionUtil.getFieldValue(pkgEntity, "packageCode");
 					String pkgIndex = pkgCode != null ? pkgCode.substring(receiptCode.length() + StringUtil.SEPARATOR_CODE.length()) : null;
 					if (pkgIndex != null) {
 						try {
 							int ind = Integer.parseInt(pkgIndex);
 							if (ind <= packageCounter) {
-								pkg.setField("totalPackage", packageCounter);
-								formioService.putSubmission(formPackageId, pkg.get_id(), pkg);
+								pkgEntity.setField("totalPackage", packageCounter);
+								setPackageData(pkgEntity, receipt);
+								formioService.putSubmission(formPackageId, pkgEntity.get_id(), pkgEntity);
 							} else {
-								formioService.deleteSubmission(formPackageId, pkg.get_id());
+								formioService.deleteSubmission(formPackageId, pkgEntity.get_id());
 							}
 						} catch(Exception e) {
 							e.printStackTrace();
