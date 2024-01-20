@@ -1,7 +1,6 @@
 package com.smartform.customize.fnt;
 
 import java.text.SimpleDateFormat;
-import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -41,7 +40,8 @@ public class FntService {
 	public static final String FORM_HANG_NHAP_KHO = "form_hangNhapKho";
 	public static final String FORM_HANG_XUAT_KHO = "form_hangXuatKho";
 	public static final String SUBMISSION_IDS = "submissionIds";
-	public static final String SUBMISSION_REF = "submissionRef";
+	public static final String REF_FORM = "refForm";
+	public static final String REF_SUBMISSION = "refSubmission";
 	public static final String PARAM_CREATING_FORM_ID = "createFormId";
 	public static final String PARAM_START_INDEX = "startIndex";
 	public static final String PARAM_END_INDEX = "endIndex";
@@ -205,29 +205,39 @@ public class FntService {
 		ActionResult result = new ActionResult();
 		Submission createdMaster;
 		List<Submission> createdDetails = new ArrayList<Submission>();
-		String formHangVe = (String) requestParams.get(FORM_HANG_VE);
-		String loHangVeId = (String) requestParams.get(SUBMISSION_REF);
-		Submission submissionHangVe = submissionUtil.getSubmissionById(formHangVe, loHangVeId);
-		Object packageNumber = SubmissionUtil.getFieldValue(submissionHangVe, "packageNumber");
-		Object importedPackageNumber = SubmissionUtil.getFieldValue(submissionHangVe, "importedPackageNumber");
+		String formHangVe = (String) requestParams.get(REF_FORM);
+		String loHangVeId = (String) requestParams.get(REF_SUBMISSION);
+		Submission submissionHangVe = (formHangVe != null && loHangVeId != null) ? submissionUtil.getSubmissionById(formHangVe, loHangVeId) : null;
+		if (submissionHangVe == null) return result;
+		Object packageCounter = SubmissionUtil.getFieldValue(submissionHangVe, "packageCounter");
+		Object storedPackageCounter = SubmissionUtil.getFieldValue(submissionHangVe, "storedPackageCounter");
 		List<String> idKienHangVes = (List<String>)requestParams.get(SUBMISSION_IDS);
 		String formHangNhapKho = (String) requestParams.get(FORM_HANG_NHAP_KHO);
 		String formNhapKho = (String)requestParams.get(FORM_NHAP_KHO);
 		List<Submission> listKienHangVe = submissionUtil.getSubmissionByIds(formKienHangVe, idKienHangVes);
+		listKienHangVe.removeIf(submission -> {
+			String status = (String)SubmissionUtil.getFieldValue(submission, "status");
+			return Status.PackageStatus.STORED.equals(status);
+		});
 		if (listKienHangVe.size() > 0 && formNhapKho != null && formHangNhapKho != null) {
-			int importPackage = (importedPackageNumber instanceof Number) ? ((Number)importedPackageNumber).intValue() : 0;
-			if(packageNumber instanceof Number) {
-				int count = ((Number)packageNumber).intValue();
-				if(count > listKienHangVe.size()) {
+			//So kien hang da nhap kho truoc action hien tai
+			int storedPackage = (storedPackageCounter instanceof Number) ? ((Number)storedPackageCounter).intValue() : 0;
+			//So kien hang nhap kho tinh ca action hien tai
+			storedPackage += listKienHangVe.size();
+			submissionHangVe.setField("storedPackageCounter", storedPackage);
+			if(packageCounter instanceof Number) {
+				int count = ((Number)packageCounter).intValue();
+				if(count > storedPackage) {
+					//Van con kien hang chua nhap
 					submissionHangVe.setField("status", Status.LoHangVe.PARTLY_IMPORTED.toString());
-					submissionHangVe.setField("importedPackageNumber", importPackage + listKienHangVe.size());
 				} else if (count == listKienHangVe.size()){
+					//Da nhap kho toan bo lo hang
 					submissionHangVe.setField("status", Status.LoHangVe.IMPORTED.toString());
-					submissionHangVe.setField("importedPackageNumber", importPackage + listKienHangVe.size());
 				} else {
 					
 				}
 			}
+			formioService.putSubmission(formHangVe, loHangVeId, submissionHangVe);
 			MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
 			params.putSingle("data.maLoFnt._id", loHangVeId);
 			List<String> maNhapKho = createImportCodes(formNhapKho, 1, params);
@@ -237,7 +247,8 @@ public class FntService {
 			if (maNhapKho.size() > 0) {
 				createdMaster.setField("importCode", maNhapKho.get(0));
 			}
-			for(String field : new String[] {"maLoFnt", "mawb"}) {
+			createdMaster.setField("maLoFnt",Map.of(Submission.FORM, formHangVe, Submission._ID, loHangVeId));
+			for(String field : new String[] {"mawb"}) {
 				createdMaster.setField(field,SubmissionUtil.getFieldValue(firstItem, field));
 			}
 			createdMaster.setField("packageCounter", listKienHangVe.size());
@@ -250,13 +261,14 @@ public class FntService {
 				Submission hangNhapKho = new Submission(formHangNhapKho);
 				hangNhapKho.setField("master", ref);
 				hangNhapKho.setField("package", Map.of(Submission.FORM, listKienHangVe, Submission._ID, hangVe.get_id()));
-				for(String field : new String[] {"packageCode", "partner"}) {
+				for(String field : new String[] {"packageCode", "partner", "partnerCode"}) {
 					hangNhapKho.setField(field,SubmissionUtil.getFieldValue(hangVe, field));
 				}
 				hangNhapKho.setField("category", Status.Store.NORMAL.toString());
 				hangNhapKho.setField("deliveryMethod", Status.Store.NORMAL.toString());
 				hangNhapKho.setField("status", Status.Store.CREATED.toString());
-				
+				hangVe.setField("status", Status.PackageStatus.STORED.toString());
+				formioService.putSubmission(formKienHangVe, hangVe.get_id(), hangVe);
 				hangNhapKho = formioService.createSubmission(formHangNhapKho, hangNhapKho);
 				createdDetails.add(hangNhapKho);
 			}
@@ -320,7 +332,7 @@ public class FntService {
 		List<String> result = new ArrayList<String>();
 		Submission lastSubmission = submissionUtil.getLastSubmission(formId, Arrays.asList("data." + fieldName));
 		String lastCode = (lastSubmission != null) ? (String)SubmissionUtil.getFieldValue(lastSubmission, fieldName) : null;
-		Integer lastSequence = parseLastCode(lastCode, prefix);
+		Integer lastSequence = parseLastCode(lastCode, prefix, dateFormat);
 		result = genCodes(prefix, length, lastSequence, counter, dateFormat);
 		
 		return result;
@@ -343,22 +355,30 @@ public class FntService {
 	/*
 	 * return last sequence from last code
 	 */
-	private Integer parseLastCode(String lastCode, String prefix) {
+	private Integer parseLastCode(String lastCode, String prefix, String dateFormat) {
 		if (lastCode == null) return null;
 		if (prefix != null) {
 			lastCode = lastCode.substring(prefix.length());
 		}
-		YearMonth yearMonth = YearMonth.now();
+		int datePart =  (dateFormat != null && !dateFormat.isEmpty()) ? dateFormat.length() : 0;
+//		if (dateFormat != null && !dateFormat.isEmpty()) {
+//			YearMonth yearMonth = YearMonth.now();
+//			try {
+//				Integer year = Integer.parseInt(lastCode.substring(0,2));
+//				if (year == yearMonth.getYear() % 2000) {
+//					return Integer.parseInt(lastCode.substring(2));
+//				} else {
+//					return 0;
+//				}
+//				
+//			} catch (Exception e) {
+//				return null;
+//			}
+//		}
 		try {
-			Integer year = Integer.parseInt(lastCode.substring(0,2));
-			if (year == yearMonth.getYear() % 2000) {
-				return Integer.parseInt(lastCode.substring(2));
-			} else {
-				return 0;
-			}
-			
+			return Integer.parseInt(lastCode.substring(datePart));
 		} catch (Exception e) {
-			return null;
+			return 0;
 		}
 	}
 	private List<String> genCodes(String prefix, int length, Integer lastSequence, int counter, String dateFormat) {
@@ -374,16 +394,17 @@ public class FntService {
 				seqStr = String.valueOf(digit) + seqStr;
 				i++;
 			} while (i < length || digit > 0);
-			if (dateFormat != null || dateFormat.isEmpty()) {
+			if (dateFormat != null && !dateFormat.isEmpty()) {
 				Date curDate = new Date();
 				SimpleDateFormat sdf = new SimpleDateFormat(dateFormat);
 				try {
-					sb.append(sdf.format(curDate)).append(seqStr);
-					result.add(sb.toString());
+					sb.append(sdf.format(curDate));
 				} catch (Exception e) {
-					
+					e.printStackTrace();
 				}
 			}
+			sb.append(seqStr);
+			result.add(sb.toString());
 		}
 		return result;
 	}

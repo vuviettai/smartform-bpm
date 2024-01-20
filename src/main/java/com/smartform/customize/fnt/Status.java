@@ -1,6 +1,43 @@
 package com.smartform.customize.fnt;
 
 public class Status {
+	public enum PackageStatus {
+		CREATED("created"),
+		STORED("stored"),
+		ARRIVED("arrived"),
+		DELIVER_READY("deliverReady"),
+		DELIVERING("delivering"),
+		DELIVER_FAIL("deliverFailed"),
+		DELIVERED("delivered");
+
+		public boolean equals(String val) {
+			return String.valueOf(this.status) == val;
+		}
+
+		private String status;
+
+		private PackageStatus(String status) {
+			// TODO Auto-generated constructor stub
+			this.status = status;
+		}
+
+		@Override
+		public String toString() {
+			return String.valueOf(status);
+		}
+
+		public String getValue() {
+			return this.status;
+		}
+
+		public static PackageStatus fromString(String literal) throws IllegalArgumentException {
+			for (final PackageStatus type : PackageStatus.values()) {
+				if (type.equals(literal))
+					return type;
+			}
+			throw new IllegalArgumentException("Invalid literal " + literal);
+		}
+	}
 	public static enum Packing {
 		INITED(1),
 		SHIPPED(2),

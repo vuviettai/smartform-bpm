@@ -26,6 +26,7 @@ public class DonViHanhChinh {
 	@Inject
     MongodbService mongodbService;
 	@RestClient
+	@Inject
 	FormioService formioService;
 	@Startup
 	void init() { 
