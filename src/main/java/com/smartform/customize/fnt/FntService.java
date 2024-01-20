@@ -107,7 +107,7 @@ public class FntService {
 		pkgEntity.setField("packageCode", packageCode);
 		pkgEntity.setField("loFnt", Map.of(Submission.FORM, receipt.getForm(), Submission._ID, receipt.get_id()));
 		setPackageData(pkgEntity, receipt);
-		pkgEntity.setField("status", Status.Packing.INITED.toValue());
+		pkgEntity.setField("status", Status.Packing.INITED.getValue());
 		return pkgEntity;
 	}
 	private void setPackageData(Submission pkgEntity, Submission receipt) {
@@ -229,10 +229,10 @@ public class FntService {
 				int count = ((Number)packageCounter).intValue();
 				if(count > storedPackage) {
 					//Van con kien hang chua nhap
-					submissionHangVe.setField("status", Status.LoHangVe.PARTLY_IMPORTED.toString());
+					submissionHangVe.setField("status", Status.LoHangVe.PARTLY_IMPORTED.getValue());
 				} else if (count == listKienHangVe.size()){
 					//Da nhap kho toan bo lo hang
-					submissionHangVe.setField("status", Status.LoHangVe.IMPORTED.toString());
+					submissionHangVe.setField("status", Status.LoHangVe.IMPORTED.getValue());
 				} else {
 					
 				}
@@ -253,21 +253,21 @@ public class FntService {
 			}
 			createdMaster.setField("packageCounter", listKienHangVe.size());
 			createdMaster.setField("createdUser", identity.getPrincipal().getName());
-			createdMaster.setField("status", Status.Store.CREATED.toString());
+			createdMaster.setField("status", Status.Store.CREATED.getValue());
 			//createdMaster.setField("note", "");
 			createdMaster = formioService.createSubmission(formNhapKho, createdMaster);
 			Map<String, String> ref = Map.of(Submission.FORM, formNhapKho, Submission._ID, createdMaster.get_id());
 			for(Submission hangVe: listKienHangVe) {
 				Submission hangNhapKho = new Submission(formHangNhapKho);
 				hangNhapKho.setField("master", ref);
-				hangNhapKho.setField("package", Map.of(Submission.FORM, listKienHangVe, Submission._ID, hangVe.get_id()));
+				hangNhapKho.setField("package", Map.of(Submission.FORM, formKienHangVe, Submission._ID, hangVe.get_id()));
 				for(String field : new String[] {"packageCode", "partner", "partnerCode"}) {
 					hangNhapKho.setField(field,SubmissionUtil.getFieldValue(hangVe, field));
 				}
-				hangNhapKho.setField("category", Status.Store.NORMAL.toString());
-				hangNhapKho.setField("deliveryMethod", Status.Store.NORMAL.toString());
-				hangNhapKho.setField("status", Status.Store.CREATED.toString());
-				hangVe.setField("status", Status.PackageStatus.STORED.toString());
+				hangNhapKho.setField("category", Status.Store.NORMAL.getValue());
+				hangNhapKho.setField("deliveryMethod", Status.Store.NORMAL.getValue());
+				hangNhapKho.setField("status", Status.Store.CREATED.getValue());
+				hangVe.setField("status", Status.PackageStatus.STORED.getValue());
 				formioService.putSubmission(formKienHangVe, hangVe.get_id(), hangVe);
 				hangNhapKho = formioService.createSubmission(formHangNhapKho, hangNhapKho);
 				createdDetails.add(hangNhapKho);
@@ -299,7 +299,7 @@ public class FntService {
 			}
 			createdMaster.setField("packageCounter", listPackages.size());
 			createdMaster.setField("createdUser", identity.getPrincipal().getName());
-			createdMaster.setField("status", Status.Store.CREATED.toString());
+			createdMaster.setField("status", Status.Store.CREATED.getValue());
 			createdMaster.setField("shipper", "");
 			//createdMaster.setField("note", "");
 			createdMaster = formioService.createSubmission(formXuatKho, createdMaster);
@@ -311,8 +311,8 @@ public class FntService {
 				for(String field : new String[] {"packageCode", "partner"}) {
 					hangXuatKho.setField(field,SubmissionUtil.getFieldValue(pkg, field));
 				}
-				hangXuatKho.setField("category", Status.Store.NORMAL.toString());
-				hangXuatKho.setField("status", Status.Store.DELIVERING.toString());
+				hangXuatKho.setField("category", Status.Store.NORMAL.getValue());
+				hangXuatKho.setField("status", Status.Store.DELIVERING.getValue());
 				hangXuatKho = formioService.createSubmission(formHangXuatKho, hangXuatKho);
 				createdDetails.add(hangXuatKho);
 			}

@@ -56,7 +56,7 @@ public class Status {
 			this.value = value;
 		}
 
-		public Integer toValue() {
+		public Integer getValue() {
 			return value;
 		}
 
@@ -86,7 +86,7 @@ public class Status {
 			this.value = value;
 		}
 
-		public String toValue() {
+		public String getValue() {
 			return value;
 		}
 
