@@ -74,6 +74,14 @@ public class SubmissionUtil {
 //		}
 //		return result;
 //	}
+	public Submission getSubmissionByRef(Map<String, Object> ref) {
+		if (ref == null) return null;
+		String formId = (String)ref.get(Submission.FORM);
+		String submissionId = (String) ref.get(Submission._ID);
+		if (formId == null || submissionId == null) return null;
+		Submission submission = formioService.getSubmission(formId, submissionId);
+		return submission;
+	}
 	public Submission getSubmissionById(String formId, String submissionId) {
 		if (formId == null || submissionId == null) return null;
 		Submission submission = formioService.getSubmission(formId, submissionId);

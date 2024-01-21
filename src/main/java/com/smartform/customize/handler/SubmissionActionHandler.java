@@ -92,13 +92,42 @@ public class SubmissionActionHandler {
 					submission.setField(dataField, receiptCodes.get(0));
 				}
 			}
+		} else if (FntService.ACTION_SUBMIT_PHIEUNHAPKHO.equalsIgnoreCase(customAction)) {
+			//Generate receiptCode
+			String dataField = "importCode";
+			String currentValue = (String)SubmissionUtil.getFieldValue(submission, dataField);
+			if (currentValue == null || currentValue.isEmpty()) {
+				MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
+				Object maLoFnt = SubmissionUtil.getFieldValue(submission, "maLoFnt");
+				if (maLoFnt instanceof Map) {
+					params.putSingle("data.maLoFnt._id", (String)((Map)maLoFnt).get(Submission._ID));
+				}
+				
+				List<String> fieldCodes = fntService.generateDataFieldCode(formId, dataField, FntService.PREFIX_NHAP_KHO, FntService.NHAPKHO_CODE_LENGTH, 1, params, null);
+				if (fieldCodes != null && fieldCodes.size() == 1) {
+					submission.setField(dataField, fieldCodes.get(0));
+				}
+			}
+		} else if (FntService.ACTION_SUBMIT_PHIEUXUATKHO.equalsIgnoreCase(customAction)) {
+			//Generate receiptCode
+			String dataField = "exportCode";
+			String currentValue = (String)SubmissionUtil.getFieldValue(submission, dataField);
+			if (currentValue == null || currentValue.isEmpty()) {
+				MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
+				List<String> fieldCodes = fntService.generateDataFieldCode(formId, dataField, FntService.PREFIX_XUAT_KHO, FntService.XUATKHO_CODE_LENGTH, 1, params, null);
+				if (fieldCodes != null && fieldCodes.size() == 1) {
+					submission.setField(dataField, fieldCodes.get(0));
+				}
+			}
 		}
 		return result;
 	}
 	public ActionResult onSubmissionCreated(String formId, Submission submission, String customAction) {
 		ActionResult result = new ActionResult();
 		if (FntService.ACTION_SUBMIT_RECEIPT.equalsIgnoreCase(customAction)) {
-			result = fntService.onReceiptCreated(formId, submission);
+			result = fntService.onCreatedReceipt(formId, submission);
+		} else if (FntService.ACTION_SUBMIT_PHIEUNHAPKHO.equalsIgnoreCase(customAction)) {
+			result = fntService.onCreatedPhieuNhapKho(formId, submission);
 		}
 		return result;
 	}

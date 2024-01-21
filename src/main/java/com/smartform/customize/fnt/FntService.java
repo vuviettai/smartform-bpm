@@ -31,6 +31,8 @@ public class FntService {
 	public static final int XUATKHO_CODE_LENGTH = 1;
 	public static final String ACTION_GENERATE_PACKAGE = "generatePackage";
 	public static final String ACTION_SUBMIT_RECEIPT = "submitReceipt";
+	public static final String ACTION_SUBMIT_PHIEUNHAPKHO = "submitPhieuNhapKho";
+	public static final String ACTION_SUBMIT_PHIEUXUATKHO = "submitPhieuXuatKho";
 	public static final String ACTION_NHAP_KHO = "nhapKho";
 	public static final String ACTION_XUAT_KHO = "xuatKho";
 	public static final String FORM_HANG_VE = "form_hangve";
@@ -127,12 +129,48 @@ public class FntService {
 			
 		}
 	}
-	public ActionResult onReceiptCreated(String formId, Submission receipt) {
+	public ActionResult onCreatedReceipt(String formId, Submission receipt) {
 		ActionResult result = new ActionResult();
 		Object formPackageId = receipt.getExtraValue(FntService.PARAM_CREATING_FORM_ID);
 		if (formPackageId != null) {
 			Map<String, Object> params = Map.of(FntService.PARAM_CREATING_FORM_ID, formPackageId);
 			generatePackage(receipt, params);
+		}
+		return result;
+	}
+	//Cap nhap lai so kien
+	public ActionResult onCreatedPhieuNhapKho(String formId, Submission phieuNhapKho) {
+		ActionResult result = new ActionResult();
+		Object maLoFnt = SubmissionUtil.getFieldValue(phieuNhapKho, "maLoFnt");
+		if (maLoFnt instanceof Submission) {
+			Submission submissionHangVe = (Submission) maLoFnt;
+			Object storedTime = SubmissionUtil.getFieldValue(submissionHangVe, "storedTime");
+			if (storedTime == null) {
+				submissionHangVe.setField("storedTime", new Date());
+			}
+			Object sokiennhap = SubmissionUtil.getFieldValue(phieuNhapKho, "packageCounter");
+			Object packageCounter = SubmissionUtil.getFieldValue(submissionHangVe, "packageCounter");
+			Object storedPackageCounter = SubmissionUtil.getFieldValue(submissionHangVe, "storedPackageCounter");
+			int storedPackage = (storedPackageCounter instanceof Number) ? ((Number)storedPackageCounter).intValue() : 0;
+			//So kien hang nhap kho tinh ca action hien tai
+			if (sokiennhap instanceof Number) {
+				storedPackage += ((Number) sokiennhap).intValue();
+			}
+			submissionHangVe.setField("storedPackageCounter", storedPackage);
+			if(packageCounter instanceof Number) {
+				int count = ((Number)packageCounter).intValue();
+				if(count > storedPackage) {
+					//Van con kien hang chua nhap
+					submissionHangVe.setField("status", Status.LoHangVe.PARTLY_IMPORTED.getValue());
+				} else if (count == storedPackage){
+					//Da nhap kho toan bo lo hang
+					submissionHangVe.setField("status", Status.LoHangVe.IMPORTED.getValue());
+				} else {
+					
+				}
+			}
+			formioService.putSubmission(submissionHangVe.getForm(), submissionHangVe.get_id(), submissionHangVe);
+			
 		}
 		return result;
 	}
@@ -230,7 +268,7 @@ public class FntService {
 				if(count > storedPackage) {
 					//Van con kien hang chua nhap
 					submissionHangVe.setField("status", Status.LoHangVe.PARTLY_IMPORTED.getValue());
-				} else if (count == listKienHangVe.size()){
+				} else if (count == storedPackage){
 					//Da nhap kho toan bo lo hang
 					submissionHangVe.setField("status", Status.LoHangVe.IMPORTED.getValue());
 				} else {
