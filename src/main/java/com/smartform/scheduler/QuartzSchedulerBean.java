@@ -14,9 +14,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 
-@ApplicationScoped
+//@ApplicationScoped
 public class QuartzSchedulerBean {
-	@Inject
+	//@Inject
     Scheduler quartz;
 	
 	void onStart(@Observes StartupEvent event) throws SchedulerException {
@@ -35,6 +35,6 @@ public class QuartzSchedulerBean {
 	}
 
 	public void scheduleJob(JobDetail job, Trigger trigger) throws SchedulerException{
-		 quartz.scheduleJob(job, trigger); 
+		 //quartz.scheduleJob(job, trigger); 
 	}
 }
