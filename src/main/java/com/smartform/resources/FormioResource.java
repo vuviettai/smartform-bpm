@@ -38,7 +38,7 @@ import jakarta.ws.rs.core.UriInfo;
 @Path("/form")
 public class FormioResource extends AbstractResource {
 
-	public static final String OPEN_FORM_ID = "openformid";
+	public static final String OPEN_FORM_ID = "openFormId";
 	public static final String FORM_USER = "formuser";
 	public static final String FORM_GROUP = "formgroup";
 	public static final String FORM_ROLE = "formrole";
@@ -309,13 +309,16 @@ public class FormioResource extends AbstractResource {
 		result.setSubmissionId(submissionId);
 		result.setParams(params);
 		String openFormId = (String) params.get(OPEN_FORM_ID);
-		if (openFormId == null) {
-			openFormId = formId;
-		}
 		Submission submission = formioService.getSubmission(formId, submissionId);
-		if (submission != null) {
-			Submission createdSubmission = formioService.createSubmission(openFormId, submission);
-			result.setSubmissionId(createdSubmission.get_id());
+		if (submission != null && openFormId != null) {
+			try { 
+				submission.setForm(null);
+				submission.set_id(null);
+				Submission createdSubmission = formioService.createSubmission(openFormId, submission);
+				result.setSubmissionId(createdSubmission.get_id());
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
 		return result;
 	}
