@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
+import com.fasterxml.jackson.databind.deser.impl.CreatorCandidate.Param;
 import com.smartform.rest.model.FormioForm;
 import com.smartform.rest.model.Submission;
 import com.smartform.utils.SubmissionUtil;
@@ -69,7 +70,7 @@ public class CommissionPolicy {
 	private Submission getCommissionByBeneficiaryType(String beneficiaryType) {
 		for (Submission detail : details) {
 			Object type = SubmissionUtil.getFieldValue(detail, COMMISSION_OBJECTIVE);
-			if (beneficiaryType.equals(type)) {
+			if (beneficiaryType != null && beneficiaryType.equals(type)) {
 				return detail;
 			}
 		}
@@ -131,6 +132,7 @@ public class CommissionPolicy {
 	}
 	public MultivaluedMap<String, String> prepareParamsContract(String period) {
 		MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
+		params.add("limit", String.valueOf(Integer.MAX_VALUE));
 		String periodUnit = (String)SubmissionUtil.getFieldValue(submission, "periodUnit");
 		String field = "data.contractDate";
 		if(CommissionPolicy.COMMISSION_PERIOD_YEARLY.equalsIgnoreCase(periodUnit)) {
@@ -219,8 +221,8 @@ public class CommissionPolicy {
 	public BeneficiaryCommission createCommission(FormioForm formCommission, FormioForm formCommissionTran, String beneficiaryFormId, String beneficiaryId, String period, 
 			List<Submission> contracts ) {
 		if (contracts == null || contracts.size() == 0) return null;
-		String beneficiaryField = getFormBeneficiary();
-		Object congtacvien = SubmissionUtil.getFieldValue(contracts.get(0), beneficiaryField);
+		//Get thong tin cong tac vien tu hop dong khach 
+		Object congtacvien = SubmissionUtil.getFieldValue(contracts.get(0), CONTRACT_CONGTACVIEN);
 		String beneficiaryType = congtacvien instanceof Submission 
 				? (String)SubmissionUtil.getFieldValue((Submission)congtacvien, CommissionPolicy.BENEFICIARY_TYPE) : null;
 		Submission commissionDetail = getCommissionByBeneficiaryType(beneficiaryType);
