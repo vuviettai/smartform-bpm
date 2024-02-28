@@ -57,6 +57,20 @@ public class CommissionService {
 				submissionUtil.loadReferenceSubmissions(contracts);
 			}
 			List<String> contractIds = Utils.getContractIds(contracts);
+			params = new MultivaluedHashMap<String, String>();
+			params.put("data.contract._id__in", contractIds);
+			params.putSingle("limit", String.valueOf(Integer.MAX_VALUE));
+			params.putSingle("sort", "ngayNop");
+			// Get ds cac lan nop tien theo contractIds
+			Map<Object, List<Submission>> mapNoptiens = null;
+			String formNoptien = commissionPolicy.getFormNoptien();
+			if (formNoptien != null) {
+				List<Submission> dsNopTien = submissionUtil.querySubmissionsByFormId(commissionPolicy.getFormNoptien(), params);
+				if (dsNopTien != null) {
+					mapNoptiens = SubmissionUtil.groupSubmissionsByField(dsNopTien, "contract");
+				}
+			}
+			
 			// Group contract by nguoi thu huong
 			Map<Object, List<Submission>> mapGroups = SubmissionUtil.groupSubmissionsByField(contracts, CommissionPolicy.CONTRACT_CONGTACVIEN);
 			List<Submission> listCommissions = new ArrayList<Submission>();
@@ -65,7 +79,7 @@ public class CommissionService {
 			//Create commission submission by contract list
 			for(Map.Entry<Object, List<Submission>> entry : mapGroups.entrySet()) {
 				BeneficiaryCommission commission = commissionPolicy.createCommission(formCommission, formCommissionTran, formBeneficiary.get_id(), 
-						 String.valueOf(entry.getKey()), policyPeriod, entry.getValue());
+						 String.valueOf(entry.getKey()), policyPeriod, entry.getValue(), mapNoptiens);
 				if (commission != null && commission.getHeader() != null) {
 					listCommissions.add(commission.getHeader());
 				}

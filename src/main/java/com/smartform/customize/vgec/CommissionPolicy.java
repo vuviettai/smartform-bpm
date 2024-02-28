@@ -219,7 +219,7 @@ public class CommissionPolicy {
 	}
 
 	public BeneficiaryCommission createCommission(FormioForm formCommission, FormioForm formCommissionTran, String beneficiaryFormId, String beneficiaryId, String period, 
-			List<Submission> contracts ) {
+			List<Submission> contracts, Map<Object, List<Submission>> noptienByContract ) {
 		if (contracts == null || contracts.size() == 0) return null;
 		//Get thong tin cong tac vien tu hop dong khach 
 		Object congtacvien = SubmissionUtil.getFieldValue(contracts.get(0), CONTRACT_CONGTACVIEN);
@@ -276,7 +276,7 @@ public class CommissionPolicy {
 			if (commissionRounds instanceof List) {
 				if (COMMISSION_PATTERN_BYCONTRACT.equalsIgnoreCase(pattern)) {
 					detailCommissions = createByContractCommissionTrans(formCommissionTran, (List<Map<String, Object>>)commissionRounds, policyRef, 
-						beneficiaryRef, period, contracts, commissionPerContract);
+						beneficiaryRef, period, contracts, commissionPerContract, noptienByContract);
 				} else if (COMMISSION_PATTERN_ONETIME.equalsIgnoreCase(pattern)){
 					detailCommissions = createOnetimeCommissionTrans(formCommissionTran, (List<Map<String, Object>>)commissionRounds, policyRef, 
 							beneficiaryRef, period, contracts, commissionPerContract);
@@ -286,17 +286,23 @@ public class CommissionPolicy {
 		return new BeneficiaryCommission(headerCommission, detailCommissions);
 	}
 	List<Submission> createByContractCommissionTrans(FormioForm form, List<Map<String, Object>> commissionRounds, Map<String, String> policyRef, 
-			Map<String, String> beneficiaryRef, String period, List<Submission> contracts, Float commissionPerContract) {
+			Map<String, String> beneficiaryRef, String period, List<Submission> contracts, 
+			Float commissionPerContract, 
+			Map<Object, List<Submission>> noptienByContract) {
 		List<Submission> commissionTrans = new ArrayList<Submission>();
 		/*
 		 * Mỗi hợp đồng sinh ra số giao dịch bằng số lần được cấu hình,
-		 * Lần cuối là số tiền còn 
+		 * Lần cuối là số tiền còn lại
+		 * Nếu số lần nộp tiền tương ứng với lần chi hoa hồng, lấy thông tin của nộp tiền 
 		 */
 		for (Submission contract : contracts) {
 			Map<String, String> contractRef = SubmissionUtil.createReferenceMap(contract);
+			List<Submission> noptiens = noptienByContract != null ? noptienByContract.get(contract.get_id()): null;
 			Float remainValue = commissionPerContract;
 			Map<String, Object> remainData = null;
-			for(Map<String, Object> round : commissionRounds) {
+			for(int ind = 0 ; ind < commissionRounds.size(); ind++) {
+				Map<String, Object> round = commissionRounds.get(ind);
+				Submission noptien = (noptiens != null && noptiens.size() > ind) ? noptiens.get(ind) : null;
 				Object objValue = round.get("value");
 				Float value = (objValue instanceof Number) ? ((Number) objValue).floatValue() : null ;
 				if (value != null) {
@@ -307,6 +313,10 @@ public class CommissionPolicy {
 					data.put(COMMISSION_CONTRACT, contractRef);
 					data.put(COMMISSION_TRAN_STATUS, "temporary");
 					data.put("period",period);		
+					if (noptien != null) {
+						data.put("ngayPhatSinh", SubmissionUtil.getFieldValue(noptien, "ngayNop"));
+						data.put("noptien", SubmissionUtil.createReferenceMap(noptien));
+					}
 					Submission comTran = new Submission(form.get_id(), data);
 					commissionTrans.add(comTran);
 				} else {
