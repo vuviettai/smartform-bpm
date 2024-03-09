@@ -109,46 +109,73 @@ public class SubmissionUtil {
 			if (submission.getData() == null)
 				continue;
 			for (Map.Entry<String, Object> entry : submission.getData().entrySet()) {
-				SubmissionRef ref = SubmissionUtil.toSubmissionReference(entry.getValue());
-				if (ref != null) {
-					List<String> list = mapRefSubmissionIds.get(ref.getFormId());
-					if (list == null) {
-						list = new ArrayList<String>();
-						mapRefSubmissionIds.put(ref.getFormId(), list);
+				List<SubmissionRef> refs = SubmissionUtil.toSubmissionReference(entry.getValue());
+				if (refs != null && refs.size() > 0) {
+					for (SubmissionRef ref : refs) {
+						List<String> list = mapRefSubmissionIds.get(ref.getFormId());
+						if (list == null) {
+							list = new ArrayList<String>();
+							mapRefSubmissionIds.put(ref.getFormId(), list);
+						}
+						list.add(ref.getSubmissionId());
+						mapFormFields.put(entry.getKey(), ref.getFormId());
 					}
-					list.add(ref.getSubmissionId());
-					mapFormFields.put(entry.getKey(), ref.getFormId());
 				}
 			}
 		}
-		Map<String, List<Submission>> mapReferenceSubmissions = new HashMap<String, List<Submission>>();
+		Map<SubmissionRef, Submission> mapReferenceSubmissions = new HashMap<SubmissionRef, Submission>();
 		// Todo: Send references to client for better performance
 		for (Map.Entry<String, List<String>> entry : mapRefSubmissionIds.entrySet()) {
 			MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
 			params.put(Submission._ID + "__in", entry.getValue());
 			params.putSingle("limit", String.valueOf(entry.getValue().size()));
+			//Get submission by each form
 			List<Submission> listReferences = querySubmissionsByFormId(entry.getKey(), params);
-			mapReferenceSubmissions.put(entry.getKey(), listReferences);
+			for (Submission submission : listReferences) {
+				mapReferenceSubmissions.put(new SubmissionRef(entry.getKey(), submission.get_id()), submission);
+			}
+			
 		}
-		for (Map.Entry<String, String> entry : mapFormFields.entrySet()) {
-			String fieldName = entry.getKey();
-			List<Submission> listReferences = mapReferenceSubmissions.get(entry.getValue());
-			Map<String, Submission> mapRefById = SubmissionUtil.groupSubmissionsById(listReferences);
+		if (mapReferenceSubmissions.size() > 0) {
 			for (Submission submission : submissions) {
 				if (submission.getData() == null)
 					continue;
-				Object fieldValue = SubmissionUtil.getFieldValue(submission, fieldName);
-				SubmissionRef ref = SubmissionUtil.toSubmissionReference(fieldValue);
-				if (ref != null) {
-					Submission refSubmission = mapRefById.get(ref.getSubmissionId());
-					if (refSubmission != null) {
-						submission.getData().put(fieldName, refSubmission);
-					}
-				}
+				setReferenceSubmission(submission.getData(), mapReferenceSubmissions);
 			}
 		}
 	}
-
+	/*
+	 * Set reference submission to the value with pair (form, _id)
+	 * useSubmission: true - use full submission for reference value, false - use data field only
+	 * 
+	 */
+	private void setReferenceSubmission(Map<String, Object> data, Map<SubmissionRef, Submission> mapReferenceSubmissions) {
+		Map<String, Object> refSubmissions = new HashMap<String, Object>();
+		for(Map.Entry<String, Object> entry : data.entrySet()) {
+			if (entry.getValue() instanceof List) {
+				for(Object itemValue : (List)entry.getValue()) {
+					if (itemValue instanceof Map) {
+						setReferenceSubmission((Map<String, Object>)itemValue, mapReferenceSubmissions);
+					}
+				}
+			} else if (entry.getValue() instanceof Map) {
+				Map<String, Object> valueMap = (Map<String, Object>)entry.getValue();
+				String formId = (String)valueMap.get(Submission.FORM);
+				String submissionId = (String)valueMap.get(Submission._ID);
+				if (formId != null && submissionId != null) {
+					Submission refSubmission = mapReferenceSubmissions.get(new SubmissionRef(formId, submissionId));
+					if (refSubmission != null) {
+						refSubmissions.put(entry.getKey(), refSubmission);
+					}
+				} else {
+					setReferenceSubmission(valueMap, mapReferenceSubmissions);
+				}
+			}
+		}
+		if (refSubmissions.size() > 0) {
+			data.putAll(refSubmissions);
+		}
+	}
 	public List<Submission> storeSubmissions(FormioForm form, List<Submission> submissions) {
 		List<Submission> storedSubmissions = new ArrayList<Submission>();
 		if (form != null) {
@@ -192,15 +219,25 @@ public class SubmissionUtil {
 		return Map.of(Submission.FORM, submission.getForm(), Submission._ID, submission.get_id());
 	}
 
-	public static SubmissionRef toSubmissionReference(Object value) {
+	public static List<SubmissionRef> toSubmissionReference(Object value) {
+		List<SubmissionRef> listRefs = new ArrayList<SubmissionRef>();
 		if (value instanceof Map) {
 			Object formId = ((Map<String, Object>) value).get(Submission.FORM);
 			Object submissionId = ((Map<String, Object>) value).get(Submission._ID);
 			if (formId instanceof String && submissionId instanceof String) {
-				return new SubmissionRef((String) formId, (String) submissionId);
+				listRefs.add(new SubmissionRef((String) formId, (String) submissionId));
+			}
+		} else if (value instanceof List) {
+			for (Object itemValue : (List)value) {
+				if (itemValue instanceof Map) {
+					for(Object itemFieldValue : ((Map<String, Object>)itemValue).values()) {
+						List<SubmissionRef> itemRefs = toSubmissionReference(itemFieldValue);
+						listRefs.addAll(itemRefs);
+					}
+				}
 			}
 		}
-		return null;
+		return listRefs;
 	}
 
 	public static Map<String, Submission> groupSubmissionsById(List<Submission> submissions) {
