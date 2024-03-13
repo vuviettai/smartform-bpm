@@ -30,14 +30,15 @@ import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 
 @Path("/master")
-public class MasterResource extends AbstractResource{
+public class MasterResource extends AbstractResource {
 
 	@RestClient
 	@Inject
 	FormioService formioService;
-	
+
 	@Inject
 	MongoClient client;
+
 	@Path("/{formId}/deleteAll")
 	@DELETE
 	public RestResponse<DeleteResult> deleteAllSubmissions(@RestPath String formId) {
@@ -46,28 +47,29 @@ public class MasterResource extends AbstractResource{
 		DeleteResult result = collection.deleteMany(filter);
 		return ResponseBuilder.ok(result).build();
 	}
+
 	@Path("/{formId}/convertGeoInfoVn")
 	@PUT
-	public List<Submission> uploadSubmissions(@RestPath String formId, String destForm) {
+	public List<Submission> convertGeoInfoVn(@RestPath String formId, String destForm) {
 		List<Submission> uploadedSubmissions = new ArrayList<Submission>();
 		MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
 		params.putSingle("limit", String.valueOf(Integer.MAX_VALUE));
-		//Delete old data
+		// Delete old data
 		RestResponse<List<Submission>> res = formioService.getSubmissions(formId, params);
 		List<Submission> submissions = res.getEntity();
 		submissions = res.getEntity();
 		if (submissions != null && submissions.size() > 0) {
 			Map<String, Submission> mapProvinces = new LinkedHashMap<String, Submission>();
 			Map<String, Submission> mapDistricts = new LinkedHashMap<String, Submission>();
-			//Store Province
-			for(Submission item : submissions) {
+			// Store Province
+			for (Submission item : submissions) {
 				Map<String, Object> itemData = item.getData();
-				String province = (String)itemData.get("province");
-				String provinceCode = (String)itemData.get("provinceCode");
+				String province = (String) itemData.get("province");
+				String provinceCode = (String) itemData.get("provinceCode");
 				String district = (String) itemData.get("district");
 				String districtCode = (String) itemData.get("districtCode");
-				String ward = (String)itemData.get("ward");
-				String wardCode = (String)itemData.get("wardCode");
+				String ward = (String) itemData.get("ward");
+				String wardCode = (String) itemData.get("wardCode");
 				String districtKey = "province" + "#" + district;
 				Submission provinceSub = mapProvinces.get(province);
 				if (provinceSub == null) {
@@ -84,26 +86,30 @@ public class MasterResource extends AbstractResource{
 				Submission wardSub = createSubmission(item, destForm, ward, wardCode, "ward", districtSub);
 				Submission createdWardSubmission = formioService.createSubmission(destForm, wardSub);
 			}
-			for(Map.Entry<String, Submission> entry : mapProvinces.entrySet()) {
-				Submission createdSubmission = formioService.createSubmission(destForm, entry.getValue());
-				entry.getValue().set_id(createdSubmission.get_id());
-			}
-			//Store district
-			
-//			//Store wards
-//			List<Submission> payload = submissions.toSubmissionList();
-//			for (Submission submission : payload) {
-//				try {
-//					Submission createdSubmission = formioService.createSubmission(formId, submission);
-//					uploadedSubmissions.add(createdSubmission);
-//				} catch (WebApplicationException e) {
-//					e.printStackTrace();
-//				}
-//			}
+			// for (Map.Entry<String, Submission> entry : mapProvinces.entrySet()) {
+			// Submission createdSubmission = formioService.createSubmission(destForm,
+			// entry.getValue());
+			// entry.getValue().set_id(createdSubmission.get_id());
+			// }
+			// Store district
+
+			// //Store wards
+			// List<Submission> payload = submissions.toSubmissionList();
+			// for (Submission submission : payload) {
+			// try {
+			// Submission createdSubmission = formioService.createSubmission(formId,
+			// submission);
+			// uploadedSubmissions.add(createdSubmission);
+			// } catch (WebApplicationException e) {
+			// e.printStackTrace();
+			// }
+			// }
 		}
 		return uploadedSubmissions;
 	}
-	private Submission createSubmission(Submission item, String form, String name, String code, String type, Submission parent) {
+
+	private Submission createSubmission(Submission item, String form, String name, String code, String type,
+			Submission parent) {
 		Submission submission = new Submission();
 		Map<String, Object> provinceData = new HashMap<String, Object>();
 		provinceData.put("name", name);
@@ -123,6 +129,7 @@ public class MasterResource extends AbstractResource{
 		}
 		return submission;
 	}
+
 	public MongoCollection<Document> getCollection(String database, String collection) {
 		return client.getDatabase(database).getCollection(collection);
 	}
