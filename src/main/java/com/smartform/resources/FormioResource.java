@@ -1,10 +1,15 @@
 package com.smartform.resources;
 
+import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.resteasy.reactive.RestPath;
 import org.jboss.resteasy.reactive.RestResponse;
@@ -13,7 +18,9 @@ import org.jboss.resteasy.reactive.common.util.RestMediaType;
 
 import com.smartform.customize.handler.FormActionHandler;
 import com.smartform.customize.handler.SubmissionActionHandler;
+import com.smartform.customize.service.MongodbService;
 import com.smartform.models.ActionResult;
+import com.smartform.models.xlsx.XlsxWorkboolModel;
 import com.smartform.rest.client.FormioService;
 import com.smartform.rest.client.FormsflowService;
 import com.smartform.rest.model.FormioForm;
@@ -29,8 +36,10 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.UriInfo;
@@ -59,6 +68,8 @@ public class FormioResource extends AbstractResource {
 	@Inject
 	private SubmissionUtil submissionUtil;
 
+	@Inject
+	private MongodbService mongodbService;
 	// private FormioForm formUser;
 	// private FormioForm formGroup;
 	// private FormioForm formRole;
@@ -121,8 +132,12 @@ public class FormioResource extends AbstractResource {
 			if (refFields != null && refFields.size() > 0 && refIds != null && refIds.size() > 0) {
 				queryParams.add(refFields.get(0), refIds.get(0));
 			}
+//			submissions = mongodbService.getSubmissions(formId, queryParams);
+//			builder = ResponseBuilder.ok(submissions, MediaType.APPLICATION_JSON);
 			clientResponse = formioService.getSubmissions(formId, queryParams);
+			builder = createResponseBuilder(clientResponse);
 			submissions = clientResponse.getEntity();
+			
 			if (submissions != null) {
 				submissionUtil.loadReferenceSubmissions(submissions);
 				// for(Submission submission : submissions) {
@@ -134,13 +149,43 @@ public class FormioResource extends AbstractResource {
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
 		}
-		builder = createResponseBuilder(clientResponse);
+		
 
 		// for(Map.Entry<String, List<String>> header :
 		// clientResponse.getStringHeaders().entrySet()) {
 		// builder = builder.header(header.getKey(), header.getValue());
 		// }
 		// builder = builder.type(MediaType.APPLICATION_JSON);
+		return builder.build();
+	}
+	@GET
+	@Path("/{formId}/submission/filter")
+	@Consumes({ RestMediaType.APPLICATION_JSON })
+	@Produces({ RestMediaType.APPLICATION_JSON })
+	public RestResponse<List<Submission>> filterSubmissions(@RestPath String formId, @Context UriInfo uriInfo) {
+		List<Submission> submissions = null;
+		ResponseBuilder<List<Submission>> builder = null;
+		try {
+			MultivaluedMap<String, String> queryParams = new MultivaluedHashMap<String, String>(uriInfo.getQueryParameters()); //parseQueryParams(formId, uriInfo);
+			// Map<String, String> filters = new HashMap<String, >();
+			List<String> refFields = queryParams.remove("refField");
+			List<String> refIds = queryParams.remove("refId");
+			if (refFields != null && refFields.size() > 0 && refIds != null && refIds.size() > 0) {
+				queryParams.add(refFields.get(0), refIds.get(0));
+			}
+			submissions = mongodbService.getSubmissions(formId, queryParams);
+			builder = ResponseBuilder.ok(submissions, MediaType.APPLICATION_JSON);
+			if (submissions != null) {
+				submissionUtil.loadReferenceSubmissions(submissions);
+				// for(Submission submission : submissions) {
+				// if (submission.getData() != null) {
+				// loadReferenceSubmissions((Map<String, Object>)submission.getData());
+				// }
+				// }
+			}
+		} catch (WebApplicationException e) {
+			e.printStackTrace();
+		}
 		return builder.build();
 	}
 	@Path("/{formId}/submission")
@@ -239,6 +284,53 @@ public class FormioResource extends AbstractResource {
 		}
 
 		return submission;
+	}
+	
+	@Path("/{formId}/submission/{submissionId}/xlsxTemplate")
+	@GET
+	public List<XlsxWorkboolModel> getXlsxTemplate(@RestPath String formId, @RestPath String submissionId, 
+			@QueryParam("templateField") String templateField) {
+		List<XlsxWorkboolModel> xlsxModels = new ArrayList<XlsxWorkboolModel>();
+		Submission submission = null;
+		try {
+			submission = formioService.getSubmission(formId, submissionId);
+			if (submission != null) {
+				// Load reference;
+				if (templateField == null) {
+					templateField = "templateFile";
+				}
+				Object templateFiles = SubmissionUtil.getFieldValue(submission, templateField);
+				if (templateFiles instanceof List) {
+					for (Object tplFile : (List)templateFiles) {
+						Map<String, Object> mapTplProps = (HashMap<String, Object>) tplFile;
+						String type = (String) mapTplProps.get("type");
+						String storage = (String) mapTplProps.get("storage");
+						String url = (String)mapTplProps.get("url");
+						if ("base64".equals(storage) && url != null && type != null) {
+							String base64Encoded = url.substring("data".length() + type.length() + storage.length() + 3);
+							Base64.Decoder decoder = Base64.getDecoder();
+							try {
+								ByteArrayInputStream bais = new ByteArrayInputStream(decoder.decode(base64Encoded));
+								Workbook workbook = new XSSFWorkbook(bais);
+								XlsxWorkboolModel workbookModel = new XlsxWorkboolModel();
+								workbookModel.parse(workbook);
+								workbookModel.setStorage(storage);
+								workbookModel.setType(type);
+								xlsxModels.add(workbookModel);
+							} catch (Exception e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+							
+						}
+					}
+				}
+			}
+		} catch (WebApplicationException e) {
+			e.printStackTrace();
+		}
+
+		return xlsxModels;
 	}
 
 	@Path("/{formId}/submission/{submissionId}")

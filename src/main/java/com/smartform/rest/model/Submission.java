@@ -6,6 +6,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.bson.Document;
+import org.bson.types.ObjectId;
+
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import lombok.Data;
 
@@ -60,6 +63,32 @@ public class Submission {
 		this.externalIds = new ArrayList<String>();
 		this.metadata = new Metadata();
 		this.roles = new String[] {};
+	}
+	public Submission(Document document) {
+		super();
+		this._id = document.getObjectId("_id").toString();
+		ObjectId ownerId = document.getObjectId("owner");
+		this.owner = ownerId != null ? ownerId.toString() : "";
+		this.access = document.getList("access", String.class);
+		this.created = document.getDate("created");
+		this.created = document.getDate("modified");
+		this.externalIds = new ArrayList<String>();
+		Map<String, Object> metadata = (Map<String, Object>)document.get("metadata");
+		this.metadata = new Metadata();
+		this.metadata.setHeaders((Map<String, String>) metadata.get("header"));
+		List<Object> roles = document.getList("roles", Object.class);
+		if (roles != null) {
+			this.roles = new String[roles.size()];
+			for (int i = 0; i < roles.size(); i ++) {
+				this.roles[i] = roles.get(i).toString();
+			}
+		}
+		//this.roles = (String[]).toArray();
+		ObjectId form = document.getObjectId("form");
+		if (form != null) {
+			this.form = form.toString();
+		}
+		this.data = (Map<String, Object>)document.get("data");
 	}
 	public void setField(String fieldName, Object value) {
 		if (data == null) {
