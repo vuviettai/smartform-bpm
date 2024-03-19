@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Drawing;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Shape;
@@ -53,8 +54,12 @@ public class XlsxSheetModel extends HashMap<String, Object>{
 		}
 		for(int col = firstCell.getColumn(); col <= lastCell.getColumn(); col++) {
 			ColModel colModel = new ColModel();
-			colModel.setWch(sheet.getColumnWidth(col));
-			colModel.setWpx(sheet.getColumnWidthInPixels(col));
+			CellStyle colStyle = sheet.getColumnStyle(col);
+			int widthUnits = sheet.getColumnWidth(col); 
+			colModel.setWch(widthUnits/256);
+			float widthPx = poiWidthToPixels(widthUnits);
+			float colWidthPx = sheet.getColumnWidthInPixels(col); 
+			colModel.setWpx(widthPx);
 			cols.add(colModel);
 		}
 		this.put("!ref", firstCell.toString() + ":" + lastCell.toString());
@@ -62,6 +67,13 @@ public class XlsxSheetModel extends HashMap<String, Object>{
 		List<XSSFShape> listShapes = drawing.getShapes();
 	
 	}
+	public static int poiWidthToPixels(final double widthUnits) {
+        if (widthUnits <= 256) {
+            return (int) Math.round((widthUnits / 28));
+        } else {
+            return (int) (Math.round(widthUnits * 8.5 / 256));
+        }
+}
 	private void parseRow(Row row, Workbook workbook, XlsxWorkboolModel workbookModel) {
 		int lastCell = row.getLastCellNum();
 		for (int col = 0; col < lastCell; col++) {

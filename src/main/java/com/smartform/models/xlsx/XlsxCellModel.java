@@ -14,8 +14,10 @@ public class XlsxCellModel {
 	private String t;
 	//Cell style
 	private XlsxCellStyleModel s;
-	//String value
+	//underlying value
 	private String v;
+	//formatted text (if applicable)
+	private String w;
 	//Formular
 	private String f;
 	private double n;
@@ -25,23 +27,35 @@ public class XlsxCellModel {
 		CellType cType = cell.getCellType();
 		switch (cType) {
 		case BLANK:
+			t="z";
 			break;
 		case BOOLEAN:
+			t = "b";
 			b = cell.getBooleanCellValue();
+			v = cell.getStringCellValue();
+			w = v;
 			break;
 		case ERROR:
+			t = "e";
 			break;
 		case FORMULA:
+			t = "f";
 			f = cell.getCellFormula();
+			v = cell.getCellFormula();
 			break;
 		case NUMERIC:
-			n = cell.getNumericCellValue();
 			try {
 				d = cell.getDateCellValue();
-			} catch (Exception e) {}
+				t = "d";
+			} catch (Exception e) {
+				t = "n";
+				n = cell.getNumericCellValue();
+			}
 			break;
 		case STRING:
+			t = "s";
 			v = cell.getStringCellValue();
+			w = cell.getStringCellValue();
 			break;
 		case _NONE:
 			break;
