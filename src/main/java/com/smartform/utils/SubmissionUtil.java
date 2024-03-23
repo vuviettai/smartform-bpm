@@ -47,7 +47,9 @@ public class SubmissionUtil {
 		List<Submission> result = null;
 		if (formId != null) {
 			RestResponse<List<Submission>> response = formioService.getSubmissions(formId, params);
+			//Load referencces
 			result = response.getEntity();
+			loadReferenceSubmissions(result);
 		}
 		return result;
 	}
@@ -112,11 +114,8 @@ public class SubmissionUtil {
 				List<SubmissionRef> refs = SubmissionUtil.toSubmissionReference(entry.getValue());
 				if (refs != null && refs.size() > 0) {
 					for (SubmissionRef ref : refs) {
-						List<String> list = mapRefSubmissionIds.get(ref.getFormId());
-						if (list == null) {
-							list = new ArrayList<String>();
-							mapRefSubmissionIds.put(ref.getFormId(), list);
-						}
+						List<String> list = mapRefSubmissionIds.getOrDefault(ref.getFormId(), new ArrayList<String>());
+						mapRefSubmissionIds.put(ref.getFormId(), list);
 						list.add(ref.getSubmissionId());
 						mapFormFields.put(entry.getKey(), ref.getFormId());
 					}
@@ -213,6 +212,16 @@ public class SubmissionUtil {
 			}
 		}
 		return result;
+	}
+	public static void setDataValue(Submission submission, String field, Object value) {
+		if (submission != null) {
+			Map<String, Object> data = submission.getData();
+			if (data == null) {
+				data = new HashMap<String, Object>();
+				submission.setData(data);
+			}
+			data.put(field, value);
+		}
 	}
 
 	public static Map<String, String> createReferenceMap(Submission submission) {

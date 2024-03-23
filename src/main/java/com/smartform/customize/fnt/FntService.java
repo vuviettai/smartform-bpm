@@ -41,6 +41,8 @@ public class FntService {
 	public static final String FORM_XUAT_KHO = "form_xuatKho";
 	public static final String FORM_HANG_NHAP_KHO = "form_hangNhapKho";
 	public static final String FORM_HANG_XUAT_KHO = "form_hangXuatKho";
+	public static final String MANIFEST_ITEMS = "manifestItems";
+	public static final String PACKAGE_CODE = "packageCode";
 	public static final String SUBMISSION_IDS = "submissionIds";
 	public static final String REF_FORM = "refForm";
 	public static final String REF_SUBMISSION = "refSubmission";
@@ -62,7 +64,7 @@ public class FntService {
 	@Inject
 	FormioService formioService;
 	
-	public List<Submission> generatePackage(Submission receipt, Map<String, Object> requestParams) {
+	public List<Submission> generatePackage(Submission receipt, Map<String, List<Map<String, Object>>> mapPackageItems, Map<String, Object> requestParams) {
 		List<Submission> createdPackages = new ArrayList<Submission>();
 		String createFormId = (String)requestParams.get(FntService.PARAM_CREATING_FORM_ID);
 		if (createFormId != null ) {
@@ -79,14 +81,55 @@ public class FntService {
 				end = ((Number)value).intValue();
 			} 	
 			if (end > start) {
-			List<Submission> listPackages = createPackages(receipt, start, end);
+				List<Submission> listPackages = createPackages(receipt, start, end);
+				//Auto allocate manifest items
+				
 				for(Submission packageSub : listPackages) {
-					Submission createdPackage = formioService.createSubmission(createFormId, packageSub);
+					String pkgCode = (String)SubmissionUtil.getFieldValue(packageSub, PACKAGE_CODE);
+					List<Map<String, Object>> pkgItems = mapPackageItems.get(pkgCode);
+					if (pkgItems != null) {
+						SubmissionUtil.setDataValue(receipt, MANIFEST_ITEMS, pkgItems);
+					}
+;					Submission createdPackage = formioService.createSubmission(createFormId, packageSub);
 					createdPackages.add(createdPackage);
 				}
 			}
 		}
 		return createdPackages;
+	}
+	/*
+	 * Item's fields: electronic, note, price, quantity, tax
+	 * Loop qua moi manifest item, voi tung manifest 'item quantity ramdomize package index
+	 */
+	public Map<String, List<Map<String, Object>>> allocateManifestItems(Submission receipt) {
+		Map<String, List<Map<String, Object>>> result = new HashMap<String, List<Map<String, Object>>>();
+		Object packageCounter = SubmissionUtil.getFieldValue(receipt, "packageCounter");
+		String receiptCode = (String)SubmissionUtil.getFieldValue(receipt, "maLoFnt");
+		List<Map<String, Object>> manifestItems = (List<Map<String, Object>>)SubmissionUtil.getFieldValue(receipt, MANIFEST_ITEMS);
+		if (packageCounter != null && packageCounter instanceof Number && manifestItems != null && manifestItems.size() > 0) {
+			int counter = ((Number)packageCounter).intValue();
+			for (Map<String, Object> manifestItem : manifestItems) {
+				Object quantity = manifestItem.get("quantity");
+				Map<String, Integer> mapPackageQuantity = new HashMap<String, Integer>();
+				if (quantity instanceof Number && ((Number)quantity).intValue() > 0) {
+					for(int i = 0; i < ((Number)quantity).intValue(); i++) {
+						int index = (int)Math.floor(counter * Math.random());
+						String packageCode = createPackageCode(receiptCode, index);
+						int pkgQuantity = mapPackageQuantity.getOrDefault(packageCode, 0) + 1;
+						mapPackageQuantity.put(packageCode, pkgQuantity);
+					}
+				}
+				for(Map.Entry<String, Integer> entry : mapPackageQuantity.entrySet()) {
+					List<Map<String, Object>> pkgItems = result.getOrDefault(entry.getKey(), new ArrayList<Map<String, Object>>());
+					Map<String, Object> item = new HashMap<String, Object>(manifestItem);
+					item.put("quantity", entry.getValue());
+					pkgItems.add(item);
+					result.put(entry.getKey(), pkgItems);
+				}
+			}
+		}
+		
+		return result;
 	}
 	/*
 	 * Sinh package co index tu start toi end (bao gom ca end)
@@ -106,7 +149,7 @@ public class FntService {
 		Submission pkgEntity = new Submission();
 		String receiptCode = (String)SubmissionUtil.getFieldValue(receipt, "maLoFnt");
 		String packageCode = createPackageCode(receiptCode, ind);
-		pkgEntity.setField("packageCode", packageCode);
+		pkgEntity.setField(PACKAGE_CODE, packageCode);
 		pkgEntity.setField("loFnt", Map.of(Submission.FORM, receipt.getForm(), Submission._ID, receipt.get_id()));
 		setPackageData(pkgEntity, receipt);
 		pkgEntity.setField("status", Status.Packing.INITED.getValue());
@@ -133,8 +176,9 @@ public class FntService {
 		ActionResult result = new ActionResult();
 		Object formPackageId = receipt.getExtraValue(FntService.PARAM_CREATING_FORM_ID);
 		if (formPackageId != null) {
+			Map<String, List<Map<String, Object>>> packageItems = allocateManifestItems(receipt);
 			Map<String, Object> params = Map.of(FntService.PARAM_CREATING_FORM_ID, formPackageId);
-			generatePackage(receipt, params);
+			generatePackage(receipt, packageItems, params);
 		}
 		return result;
 	}
@@ -188,38 +232,54 @@ public class FntService {
 			params.put(FntService.PARAM_CREATING_FORM_ID, formPackageId);
 			//queryParams.putSingle("form", formPackageId);
 			queryParams.putSingle("data.loFnt._id", receipt.get_id());
-			List<Submission> listPackages = formioService.getSubmissions((String)formPackageId, queryParams).getEntity();
+			Map<String, List<Map<String, Object>>> mapPkgItems = allocateManifestItems(receipt);
+			List<Submission> listPackages = formioService.getSubmissions(formPackageId, queryParams).getEntity();
 			if (listPackages == null || listPackages.size() == 0) {
-				generatePackage(receipt, params);
-			} else if (listPackages.size() > packageCounter) {
-				//Delete extra packages
-				String receiptCode = (String)SubmissionUtil.getFieldValue(receipt, "maLoFnt");
-				for (Submission pkgEntity : listPackages) {
-					String pkgCode = (String) SubmissionUtil.getFieldValue(pkgEntity, "packageCode");
-					String pkgIndex = pkgCode != null ? pkgCode.substring(receiptCode.length() + StringUtil.SEPARATOR_CODE.length()) : null;
-					if (pkgIndex != null) {
-						try {
-							int ind = Integer.parseInt(pkgIndex);
-							if (ind <= packageCounter) {
-								pkgEntity.setField("totalPackage", packageCounter);
-								setPackageData(pkgEntity, receipt);
-								formioService.putSubmission(formPackageId, pkgEntity.get_id(), pkgEntity);
-							} else {
-								formioService.deleteSubmission(formPackageId, pkgEntity.get_id());
-							}
-						} catch(Exception e) {
-							e.printStackTrace();
-						}
+				generatePackage(receipt, mapPkgItems, params);
+			} else {
+				//Update manifestItems for old packages
+				for (int i = 0; i < listPackages.size() && i < packageCounter; i++) {
+					Submission pkgSubmission = listPackages.get(i);
+					String pkgCode = (String)SubmissionUtil.getFieldValue(pkgSubmission, PACKAGE_CODE);
+					List<Map<String, Object>> pkgItems = mapPkgItems.get(pkgCode);
+					SubmissionUtil.setDataValue(pkgSubmission, MANIFEST_ITEMS, pkgItems);
+					try {
+						formioService.putSubmission(formPackageId, pkgSubmission.get_id(), pkgSubmission);
+					} catch (Exception e) {
+						e.printStackTrace();
 					}
 				}
-				//And update field TotalPackage of remain Packages
-			} else if (listPackages.size() < packageCounter) {
-				//Generate extra packages
-				params.put(FntService.PARAM_START_INDEX, listPackages.size() + 1);
-				params.put(FntService.PARAM_END_INDEX, packageCounter);
-				generatePackage(receipt, params);
-				for (Submission pkg : listPackages) {
-					pkg.setField("totalPackage", packageCounter);
+				formioService.getSubmissions(formPackageId, queryParams);
+				if (listPackages.size() > packageCounter) {
+					//Delete extra packages
+					String receiptCode = (String)SubmissionUtil.getFieldValue(receipt, "maLoFnt");
+					for (Submission pkgEntity : listPackages) {
+						String pkgCode = (String) SubmissionUtil.getFieldValue(pkgEntity, PACKAGE_CODE);
+						String pkgIndex = pkgCode != null ? pkgCode.substring(receiptCode.length() + StringUtil.SEPARATOR_CODE.length()) : null;
+						if (pkgIndex != null) {
+							try {
+								int ind = Integer.parseInt(pkgIndex);
+								if (ind <= packageCounter) {
+									pkgEntity.setField("totalPackage", packageCounter);
+									setPackageData(pkgEntity, receipt);
+									formioService.putSubmission(formPackageId, pkgEntity.get_id(), pkgEntity);
+								} else {
+									formioService.deleteSubmission(formPackageId, pkgEntity.get_id());
+								}
+							} catch(Exception e) {
+								e.printStackTrace();
+							}
+						}
+					}
+					//And update field TotalPackage of remain Packages
+				} else if (listPackages.size() < packageCounter) {
+					//Generate extra packages
+					params.put(FntService.PARAM_START_INDEX, listPackages.size() + 1);
+					params.put(FntService.PARAM_END_INDEX, packageCounter);
+					generatePackage(receipt, mapPkgItems, params);
+					for (Submission pkg : listPackages) {
+						pkg.setField("totalPackage", packageCounter);
+					}
 				}
 			}
 		}
@@ -299,7 +359,7 @@ public class FntService {
 				Submission hangNhapKho = new Submission(formHangNhapKho);
 				hangNhapKho.setField("master", ref);
 				hangNhapKho.setField("package", Map.of(Submission.FORM, formKienHangVe, Submission._ID, hangVe.get_id()));
-				for(String field : new String[] {"packageCode", "partner", "partnerCode"}) {
+				for(String field : new String[] {PACKAGE_CODE, "partner", "partnerCode"}) {
 					hangNhapKho.setField(field,SubmissionUtil.getFieldValue(hangVe, field));
 				}
 				hangNhapKho.setField("category", Status.Store.NORMAL.getValue());
@@ -346,7 +406,7 @@ public class FntService {
 				Submission hangXuatKho = new Submission(formHangXuatKho);
 				hangXuatKho.setField("master", ref);
 				hangXuatKho.setField("package", Map.of(Submission.FORM, formHangTrongKho, Submission._ID, pkg.get_id()));
-				for(String field : new String[] {"packageCode", "partner"}) {
+				for(String field : new String[] {PACKAGE_CODE, "partner"}) {
 					hangXuatKho.setField(field,SubmissionUtil.getFieldValue(pkg, field));
 				}
 				hangXuatKho.setField("category", Status.Store.NORMAL.getValue());

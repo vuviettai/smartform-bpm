@@ -174,7 +174,11 @@ public class FormioResource extends AbstractResource {
 				queryParams.add(refFields.get(0), refIds.get(0));
 			}
 			submissions = mongodbService.getSubmissions(formId, queryParams);
-			builder = ResponseBuilder.ok(submissions, MediaType.APPLICATION_JSON);
+			if (submissions == null || submissions.isEmpty()) {
+				builder = ResponseBuilder.noContent();
+			} else {
+				builder = ResponseBuilder.ok(submissions, MediaType.APPLICATION_JSON);
+			}
 			if (submissions != null) {
 				submissionUtil.loadReferenceSubmissions(submissions);
 				// for(Submission submission : submissions) {

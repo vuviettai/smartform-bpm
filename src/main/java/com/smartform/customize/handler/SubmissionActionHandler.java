@@ -74,7 +74,8 @@ public class SubmissionActionHandler {
 		if (FntService.ACTION_GENERATE_PACKAGE.equalsIgnoreCase(actionName)) {
 			Submission receipt = formioService.getSubmission(formId, submissionId);
 			if (receipt != null) {
-				fntService.generatePackage(receipt, params);
+				Map<String, List<Map<String, Object>>> mapPackageItems = fntService.allocateManifestItems(receipt);
+				fntService.generatePackage(receipt, mapPackageItems, params);
 			}
 		}
 		return result;
