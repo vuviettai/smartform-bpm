@@ -11,8 +11,10 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
+@EqualsAndHashCode(callSuper=false)
 public class XlsxWorkboolModel extends HashMap<String, Object>{
 	private static final long serialVersionUID = -5885572425630050678L;
 	private String type;

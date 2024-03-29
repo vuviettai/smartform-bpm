@@ -42,6 +42,8 @@ public class FntService {
 	public static final String FORM_HANG_NHAP_KHO = "form_hangNhapKho";
 	public static final String FORM_HANG_XUAT_KHO = "form_hangXuatKho";
 	public static final String MANIFEST_ITEMS = "manifestItems";
+	public static final String RECEIPT = "receipt";
+	public static final String RECEIPT_CODE = "receiptCode";
 	public static final String PACKAGE_CODE = "packageCode";
 	public static final String SUBMISSION_IDS = "submissionIds";
 	public static final String REF_FORM = "refForm";
@@ -104,7 +106,7 @@ public class FntService {
 	public Map<String, List<Map<String, Object>>> allocateManifestItems(Submission receipt) {
 		Map<String, List<Map<String, Object>>> result = new HashMap<String, List<Map<String, Object>>>();
 		Object packageCounter = SubmissionUtil.getFieldValue(receipt, "packageCounter");
-		String receiptCode = (String)SubmissionUtil.getFieldValue(receipt, "maLoFnt");
+		String receiptCode = (String)SubmissionUtil.getFieldValue(receipt, RECEIPT_CODE);
 		List<Map<String, Object>> manifestItems = (List<Map<String, Object>>)SubmissionUtil.getFieldValue(receipt, MANIFEST_ITEMS);
 		if (packageCounter != null && packageCounter instanceof Number && manifestItems != null && manifestItems.size() > 0) {
 			int counter = ((Number)packageCounter).intValue();
@@ -114,7 +116,8 @@ public class FntService {
 				if (quantity instanceof Number && ((Number)quantity).intValue() > 0) {
 					for(int i = 0; i < ((Number)quantity).intValue(); i++) {
 						int index = (int)Math.floor(counter * Math.random());
-						String packageCode = createPackageCode(receiptCode, index);
+						//Package index start from 1
+						String packageCode = createPackageCode(receiptCode, index + 1);
 						int pkgQuantity = mapPackageQuantity.getOrDefault(packageCode, 0) + 1;
 						mapPackageQuantity.put(packageCode, pkgQuantity);
 					}
@@ -147,16 +150,16 @@ public class FntService {
 	}
 	private Submission createPackage(Submission receipt, Integer ind) {
 		Submission pkgEntity = new Submission();
-		String receiptCode = (String)SubmissionUtil.getFieldValue(receipt, "maLoFnt");
+		String receiptCode = (String)SubmissionUtil.getFieldValue(receipt, RECEIPT_CODE);
 		String packageCode = createPackageCode(receiptCode, ind);
 		pkgEntity.setField(PACKAGE_CODE, packageCode);
-		pkgEntity.setField("loFnt", Map.of(Submission.FORM, receipt.getForm(), Submission._ID, receipt.get_id()));
+		pkgEntity.setField(RECEIPT, Map.of(Submission.FORM, receipt.getForm(), Submission._ID, receipt.get_id()));
 		setPackageData(pkgEntity, receipt);
 		pkgEntity.setField("status", Status.Packing.INITED.getValue());
 		return pkgEntity;
 	}
 	private void setPackageData(Submission pkgEntity, Submission receipt) {
-		String[] fields = new String[]{"partner","detail","maLoFnt","serviceType","recipient", "recipientPhone", "address", "note"};
+		String[] fields = new String[]{"partner","detail",RECEIPT_CODE,"serviceType","recipient", "recipientPhone", "address", "note"};
 		for(String field: fields) {
 			pkgEntity.setField(field, SubmissionUtil.getFieldValue(receipt, field));
 		}
@@ -231,7 +234,7 @@ public class FntService {
 			Map<String, Object> params = new HashMap<String, Object>();
 			params.put(FntService.PARAM_CREATING_FORM_ID, formPackageId);
 			//queryParams.putSingle("form", formPackageId);
-			queryParams.putSingle("data.loFnt._id", receipt.get_id());
+			queryParams.putSingle("data.receipt._id", receipt.get_id());
 			Map<String, List<Map<String, Object>>> mapPkgItems = allocateManifestItems(receipt);
 			List<Submission> listPackages = formioService.getSubmissions(formPackageId, queryParams).getEntity();
 			if (listPackages == null || listPackages.size() == 0) {
@@ -252,7 +255,7 @@ public class FntService {
 				formioService.getSubmissions(formPackageId, queryParams);
 				if (listPackages.size() > packageCounter) {
 					//Delete extra packages
-					String receiptCode = (String)SubmissionUtil.getFieldValue(receipt, "maLoFnt");
+					String receiptCode = (String)SubmissionUtil.getFieldValue(receipt, RECEIPT_CODE);
 					for (Submission pkgEntity : listPackages) {
 						String pkgCode = (String) SubmissionUtil.getFieldValue(pkgEntity, PACKAGE_CODE);
 						String pkgIndex = pkgCode != null ? pkgCode.substring(receiptCode.length() + StringUtil.SEPARATOR_CODE.length()) : null;
@@ -437,7 +440,7 @@ public class FntService {
 	}
 	
 	public List<String> createReceiptCode(String formReceipt, int counter) {
-		List<String> result = generateDataFieldCode(formReceipt, "receiptCode", PREFIX_RECEIPT, RECEIPT_CODE_LENGTH, counter, null, "YY");		
+		List<String> result = generateDataFieldCode(formReceipt, RECEIPT_CODE, PREFIX_RECEIPT, RECEIPT_CODE_LENGTH, counter, null, "YY");		
 		return result;
 	}
 	public List<String> createImportCodes(String formNhapKho, int counter, MultivaluedMap<String, String> params) {

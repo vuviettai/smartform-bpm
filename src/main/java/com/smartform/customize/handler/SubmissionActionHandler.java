@@ -85,7 +85,7 @@ public class SubmissionActionHandler {
 		ActionResult result = new ActionResult();
 		if (FntService.ACTION_SUBMIT_RECEIPT.equalsIgnoreCase(customAction)) {
 			//Generate receiptCode
-			String dataField = "maLoFnt";
+			String dataField = FntService.RECEIPT_CODE;
 			String currentValue = (String)SubmissionUtil.getFieldValue(submission, dataField);
 			if (currentValue == null || currentValue.isEmpty()) {
 				List<String> receiptCodes = fntService.generateDataFieldCode(formId, dataField, FntService.PREFIX_RECEIPT, FntService.RECEIPT_CODE_LENGTH, 1, null, "YY");
