@@ -7,6 +7,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -15,6 +16,7 @@ import org.jboss.resteasy.reactive.RestPath;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.jboss.resteasy.reactive.RestResponse.ResponseBuilder;
 import org.jboss.resteasy.reactive.common.util.RestMediaType;
+import org.keycloak.admin.client.Keycloak;
 
 import com.smartform.customize.handler.FormActionHandler;
 import com.smartform.customize.handler.SubmissionActionHandler;
@@ -28,6 +30,7 @@ import com.smartform.rest.model.Submission;
 import com.smartform.rest.model.Submissions;
 import com.smartform.utils.SubmissionUtil;
 
+import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -52,9 +55,11 @@ public class FormioResource extends AbstractResource {
 	public static final String FORM_GROUP = "formgroup";
 	public static final String FORM_ROLE = "formrole";
 
-	@RestClient
 	@Inject
-	FormioService formioService;
+    SecurityIdentity identity;
+	
+	@Inject
+    Keycloak keycloak;
 
 	@RestClient
 	@Inject
@@ -126,12 +131,14 @@ public class FormioResource extends AbstractResource {
 		RestResponse<List<Submission>> clientResponse = null;
 		try {
 			MultivaluedMap<String, String> queryParams = new MultivaluedHashMap<String, String>(uriInfo.getQueryParameters()); //parseQueryParams(formId, uriInfo);
+			injectQueryParams(identity, formId, queryParams);
 			// Map<String, String> filters = new HashMap<String, >();
 			List<String> refFields = queryParams.remove("refField");
 			List<String> refIds = queryParams.remove("refId");
 			if (refFields != null && refFields.size() > 0 && refIds != null && refIds.size() > 0) {
 				queryParams.add(refFields.get(0), refIds.get(0));
 			}
+			
 //			submissions = mongodbService.getSubmissions(formId, queryParams);
 //			builder = ResponseBuilder.ok(submissions, MediaType.APPLICATION_JSON);
 			clientResponse = formioService.getSubmissions(formId, queryParams);
@@ -167,7 +174,7 @@ public class FormioResource extends AbstractResource {
 		ResponseBuilder<List<Submission>> builder = null;
 		try {
 			MultivaluedMap<String, String> queryParams = new MultivaluedHashMap<String, String>(uriInfo.getQueryParameters()); //parseQueryParams(formId, uriInfo);
-			// Map<String, String> filters = new HashMap<String, >();
+			injectQueryParams(identity, formId, queryParams);
 			List<String> refFields = queryParams.remove("refField");
 			List<String> refIds = queryParams.remove("refId");
 			if (refFields != null && refFields.size() > 0 && refIds != null && refIds.size() > 0) {
@@ -198,7 +205,7 @@ public class FormioResource extends AbstractResource {
 		Submission createdSubmission = null;
 		// Formsflow formsflow = null;
 		try {
-			// formsflow = formsflowService.getById(formId);
+			injectPartnerGroup(identity, submission);
 			createdSubmission = formioService.createSubmission(formId, submission);
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
@@ -217,6 +224,7 @@ public class FormioResource extends AbstractResource {
 			if(customAction != null) {
 				actionHandler.prepareSubmission(formId, submission, customAction);
 			} 
+			injectPartnerGroup(identity, submission);
 			createdSubmission = formioService.createSubmission(formId, submission);
 			if(customAction != null) {
 				createdSubmission.setExtraParams(submission.getExtraParams());
@@ -245,8 +253,10 @@ public class FormioResource extends AbstractResource {
 		List<Submission> uploadedSubmissions = new ArrayList<Submission>();
 		if (submissions != null) {
 			List<Submission> payload = submissions.toSubmissionList();
+			injectPartnerGroup(identity, payload);
 			for (Submission submission : payload) {
 				try {
+					
 					Submission createdSubmission = formioService.createSubmission(formId, submission);
 					uploadedSubmissions.add(createdSubmission);
 				} catch (WebApplicationException e) {
@@ -281,7 +291,18 @@ public class FormioResource extends AbstractResource {
 			submission = formioService.getSubmission(formId, submissionId);
 			if (submission != null) {
 				// Load reference;
-				submissionUtil.loadReferenceSubmissions(Arrays.asList(submission));
+				Optional<String> partnerGroup = getPartnerGroupName(identity);
+				if (partnerGroup.isPresent()) {
+					if(submission.getData() != null 
+							&& partnerGroup.get().equals(submission.getData().get(KEYCLOAK_GROUP_PARTNER))) {
+						submissionUtil.loadReferenceSubmissions(Arrays.asList(submission));
+					} else {
+						submission = null;
+					}
+				} else {
+					submissionUtil.loadReferenceSubmissions(Arrays.asList(submission));
+				}
+				
 			}
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
@@ -371,7 +392,16 @@ public class FormioResource extends AbstractResource {
 	public Submission deleteSubmission(@RestPath String formId, @RestPath String submissionId) {
 		Submission deleted = null;
 		try {
-			deleted = formioService.deleteSubmission(formId, submissionId);
+			Optional<String> partnerGroup = getPartnerGroupName(identity);
+			if (partnerGroup.isEmpty()) {
+				deleted = formioService.deleteSubmission(formId, submissionId);
+			} else {
+				deleted = getSubmission(formId, submissionId);
+				if (deleted != null && deleted.getData() != null 
+						&& partnerGroup.get().equals(deleted.getData().get(KEYCLOAK_GROUP_PARTNER))) {
+					deleted =  formioService.deleteSubmission(formId, submissionId);
+				}
+			}
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
 		}
@@ -408,6 +438,10 @@ public class FormioResource extends AbstractResource {
 		Submission submission = formioService.getSubmission(formId, submissionId);
 		if (submission != null && openFormId != null) {
 			try { 
+				Optional<String> partnerGroup = getPartnerGroupName(identity);
+				if (partnerGroup.isPresent() && submission.getData() != null) {
+					submission.getData().put(KEYCLOAK_GROUP_PARTNER, partnerGroup.get());
+				}
 				submission.setForm(null);
 				submission.set_id(null);
 				Submission createdSubmission = formioService.createSubmission(openFormId, submission);
@@ -418,37 +452,4 @@ public class FormioResource extends AbstractResource {
 		}
 		return result;
 	}
-
-	// private void loadReferenceSubmissions(Map<String, Object> data) {
-	// Map<String, Submission> mapRefSubmissions = new HashMap<String,
-	// Submission>();
-	// for(Map.Entry<String, Object> entry : data.entrySet()) {
-	// if (entry.getValue() instanceof Map) {
-	// Map<String, String> ref = (Map<String, String>)entry.getValue();
-	// Submission refSubmission = getReferenceSubmission(ref);
-	// if (refSubmission != null) {
-	// String key = ref.get(Submission.FORM) + "#" + ref.get(Submission._ID);
-	// mapRefSubmissions.put(entry.getKey(), refSubmission);
-	// }
-	// } else if (entry.getValue() instanceof List) {
-	// for(Object element : (List) entry.getValue()) {
-	// if (element instanceof Map) {
-	// loadReferenceSubmissions((Map<String, Object>)element);
-	// }
-	// }
-	//
-	// }
-	// }
-	// data.putAll(mapRefSubmissions);
-	// }
-
-	// private Submission getReferenceSubmission(Map<String, String> ref) {
-	// String formId = ref.get(Submission.FORM);
-	// String submissionId = ref.get(Submission._ID);
-	// Submission refSubmission = null;
-	// if (formId != null && submissionId != null) {
-	// refSubmission = getSubmission(formId, submissionId);
-	// }
-	// return refSubmission;
-	// }
 }
