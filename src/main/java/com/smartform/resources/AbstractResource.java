@@ -67,7 +67,7 @@ public abstract class AbstractResource {
 	protected void injectQueryParams(String formId, MultivaluedMap<String, String> queryParams) {
 		Optional<String> groupName = getPartnerGroupName(identity);
 		if(groupName.isPresent()) {
-			LOG.debug("Inject group name %s", groupName.get());
+			LOG.debugf("Inject group name %s", groupName.get());
 			try {
 				FormioForm formioForm = formioService.getForm(formId);
 				Optional<Object> fieldPartnerGroup = getField(formioForm.getComponents(), FORMIO_COMPONENT_PARTNER);
