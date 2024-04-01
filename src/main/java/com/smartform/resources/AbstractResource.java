@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.eclipse.microprofile.rest.client.inject.RestClient;
+import org.jboss.logging.Logger;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.jboss.resteasy.reactive.RestResponse.ResponseBuilder;
 import org.jboss.resteasy.reactive.RestResponse.Status;
@@ -32,6 +33,8 @@ public abstract class AbstractResource {
 	public static final String FORMIO_COMPONENTS = "components";
 	public static final String FORMIO_COMPONENT_KEY = "key";
 	public static final String FORMIO_COMPONENT_PARTNER = "partner";
+	
+	private static final Logger LOG = Logger.getLogger(AbstractResource.class);
 	
 	@Inject
     SecurityIdentity identity;
@@ -64,6 +67,7 @@ public abstract class AbstractResource {
 	protected void injectQueryParams(String formId, MultivaluedMap<String, String> queryParams) {
 		Optional<String> groupName = getPartnerGroupName(identity);
 		if(groupName.isPresent()) {
+			LOG.debug("Inject group name %s", groupName.get());
 			try {
 				FormioForm formioForm = formioService.getForm(formId);
 				Optional<Object> fieldPartnerGroup = getField(formioForm.getComponents(), FORMIO_COMPONENT_PARTNER);
