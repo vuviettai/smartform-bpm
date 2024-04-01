@@ -6,13 +6,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.Set;
 
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.jboss.resteasy.reactive.RestResponse.ResponseBuilder;
 import org.jboss.resteasy.reactive.RestResponse.Status;
+import org.keycloak.admin.client.Keycloak;
 
 import com.smartform.rest.client.FormioService;
 import com.smartform.rest.model.FormioForm;
@@ -32,6 +32,13 @@ public abstract class AbstractResource {
 	public static final String FORMIO_COMPONENTS = "components";
 	public static final String FORMIO_COMPONENT_KEY = "key";
 	public static final String FORMIO_COMPONENT_PARTNER = "partner";
+	
+	@Inject
+    SecurityIdentity identity;
+	
+	@Inject
+    Keycloak keycloak;
+	
 	@RestClient
 	@Inject
 	protected FormioService formioService;
@@ -54,7 +61,7 @@ public abstract class AbstractResource {
 		}		
 		return builder;
 	}
-	protected void injectQueryParams(SecurityIdentity identity, String formId, MultivaluedMap<String, String> queryParams) {
+	protected void injectQueryParams(String formId, MultivaluedMap<String, String> queryParams) {
 		Optional<String> groupName = getPartnerGroupName(identity);
 		if(groupName.isPresent()) {
 			try {
@@ -69,16 +76,16 @@ public abstract class AbstractResource {
 			
 		}
 	}
-	protected void injectPartnerGroup(SecurityIdentity identity, Submission submission) {
+	protected void injectPartnerGroup(Submission submission) {
 		Optional<String> groupName = getPartnerGroupName(identity);
 		if(groupName.isPresent() && submission != null) {
 			if (submission.getData() == null) {
 				submission.setData(new HashMap<String, Object>());
 			}
-			submission.getData().put("data.partner", groupName.get());
+			submission.getData().put(FORMIO_COMPONENT_PARTNER, groupName.get());
 		}
 	}
-	protected void injectPartnerGroup(SecurityIdentity identity, List<Submission> submissions) {
+	protected void injectPartnerGroup(List<Submission> submissions) {
 		Optional<String> groupName = getPartnerGroupName(identity);
 		if(groupName.isPresent() && submissions != null) {
 			for (Submission submission : submissions) {

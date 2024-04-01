@@ -16,21 +16,18 @@ import org.jboss.resteasy.reactive.RestPath;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.jboss.resteasy.reactive.RestResponse.ResponseBuilder;
 import org.jboss.resteasy.reactive.common.util.RestMediaType;
-import org.keycloak.admin.client.Keycloak;
 
 import com.smartform.customize.handler.FormActionHandler;
 import com.smartform.customize.handler.SubmissionActionHandler;
 import com.smartform.customize.service.MongodbService;
 import com.smartform.models.ActionResult;
 import com.smartform.models.xlsx.XlsxWorkboolModel;
-import com.smartform.rest.client.FormioService;
 import com.smartform.rest.client.FormsflowService;
 import com.smartform.rest.model.FormioForm;
 import com.smartform.rest.model.Submission;
 import com.smartform.rest.model.Submissions;
 import com.smartform.utils.SubmissionUtil;
 
-import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -54,12 +51,6 @@ public class FormioResource extends AbstractResource {
 	public static final String FORM_USER = "formuser";
 	public static final String FORM_GROUP = "formgroup";
 	public static final String FORM_ROLE = "formrole";
-
-	@Inject
-    SecurityIdentity identity;
-	
-	@Inject
-    Keycloak keycloak;
 
 	@RestClient
 	@Inject
@@ -131,7 +122,7 @@ public class FormioResource extends AbstractResource {
 		RestResponse<List<Submission>> clientResponse = null;
 		try {
 			MultivaluedMap<String, String> queryParams = new MultivaluedHashMap<String, String>(uriInfo.getQueryParameters()); //parseQueryParams(formId, uriInfo);
-			injectQueryParams(identity, formId, queryParams);
+			injectQueryParams(formId, queryParams);
 			// Map<String, String> filters = new HashMap<String, >();
 			List<String> refFields = queryParams.remove("refField");
 			List<String> refIds = queryParams.remove("refId");
@@ -174,7 +165,7 @@ public class FormioResource extends AbstractResource {
 		ResponseBuilder<List<Submission>> builder = null;
 		try {
 			MultivaluedMap<String, String> queryParams = new MultivaluedHashMap<String, String>(uriInfo.getQueryParameters()); //parseQueryParams(formId, uriInfo);
-			injectQueryParams(identity, formId, queryParams);
+			injectQueryParams(formId, queryParams);
 			List<String> refFields = queryParams.remove("refField");
 			List<String> refIds = queryParams.remove("refId");
 			if (refFields != null && refFields.size() > 0 && refIds != null && refIds.size() > 0) {
@@ -205,7 +196,7 @@ public class FormioResource extends AbstractResource {
 		Submission createdSubmission = null;
 		// Formsflow formsflow = null;
 		try {
-			injectPartnerGroup(identity, submission);
+			injectPartnerGroup(submission);
 			createdSubmission = formioService.createSubmission(formId, submission);
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
@@ -224,7 +215,7 @@ public class FormioResource extends AbstractResource {
 			if(customAction != null) {
 				actionHandler.prepareSubmission(formId, submission, customAction);
 			} 
-			injectPartnerGroup(identity, submission);
+			injectPartnerGroup(submission);
 			createdSubmission = formioService.createSubmission(formId, submission);
 			if(customAction != null) {
 				createdSubmission.setExtraParams(submission.getExtraParams());
@@ -253,7 +244,7 @@ public class FormioResource extends AbstractResource {
 		List<Submission> uploadedSubmissions = new ArrayList<Submission>();
 		if (submissions != null) {
 			List<Submission> payload = submissions.toSubmissionList();
-			injectPartnerGroup(identity, payload);
+			injectPartnerGroup(payload);
 			for (Submission submission : payload) {
 				try {
 					
@@ -294,7 +285,7 @@ public class FormioResource extends AbstractResource {
 				Optional<String> partnerGroup = getPartnerGroupName(identity);
 				if (partnerGroup.isPresent()) {
 					if(submission.getData() != null 
-							&& partnerGroup.get().equals(submission.getData().get(KEYCLOAK_GROUP_PARTNER))) {
+							&& partnerGroup.get().equals(submission.getData().get(FORMIO_COMPONENT_PARTNER))) {
 						submissionUtil.loadReferenceSubmissions(Arrays.asList(submission));
 					} else {
 						submission = null;
