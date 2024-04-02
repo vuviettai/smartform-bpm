@@ -31,6 +31,7 @@ public abstract class AbstractResource {
 	public static final String KEYCLOAK_CLAIM_GROUPS = "groups";
 	public static final String KEYCLOAK_GROUP_PARTNER = "/partner/";
 	public static final String FORMIO_COMPONENTS = "components";
+	public static final String FORMIO_COLUMNS = "columns";
 	public static final String FORMIO_COMPONENT_KEY = "key";
 	public static final String FORMIO_COMPONENT_PARTNER = "partner";
 	
@@ -126,6 +127,8 @@ public abstract class AbstractResource {
 					}
 					Object children = map.get(FORMIO_COMPONENTS);
 					if (children instanceof List) {
+						queue.addAll((List<Object>)children);
+					} else if ((children = map.get(FORMIO_COLUMNS)) instanceof List) {
 						queue.addAll((List<Object>)children);
 					}
 				}
