@@ -28,13 +28,13 @@ public class XlsxWorkboolModel extends HashMap<String, Object>{
 		this.put("Sheets", sheets);
 		this.put("Styles", styles);
 	}
-	public void parse(Workbook workbook) {
+	public void parse(Workbook workbook, Object lastCell) {
 		int sheetCount = workbook.getNumberOfSheets();
 		for (int ind = 0; ind < sheetCount; ind++) {
 			Sheet sheet = workbook.getSheetAt(ind);
 			sheetNames.add(sheet.getSheetName());
 			XlsxSheetModel sheetModel = new XlsxSheetModel();
-			sheetModel.parse(sheet, this);
+			sheetModel.parse(sheet, this, lastCell);
 			sheets.put(sheet.getSheetName(), sheetModel);
 		}	
 		List<? extends PictureData> listPictures = workbook.getAllPictures();

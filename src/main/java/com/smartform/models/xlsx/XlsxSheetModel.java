@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -25,6 +26,7 @@ public class XlsxSheetModel extends HashMap<String, Object>{
 	private static final long serialVersionUID = -1331590840147824426L;
 	private List<MergeModel> merges = new ArrayList<MergeModel>();
 	private List<ColModel> cols = new ArrayList<ColModel>();
+	private List<RowModel> rows = new ArrayList<RowModel>();
 	private List<ShapeModel> shapes = new ArrayList<ShapeModel>();
 	private int firstRow = 0;
 	private CellAddress firstCell;
@@ -34,17 +36,24 @@ public class XlsxSheetModel extends HashMap<String, Object>{
 		this.put("!cols", cols);
 		this.put("!merges", merges);
 		this.put("!shapes", shapes);
+		this.put("!rows", rows);
 	}
-	public void parse(Sheet sheet, XlsxWorkboolModel workbookModel) {
+	public void parse(Sheet sheet, XlsxWorkboolModel workbookModel, Object lastCellName) {
 		firstRow = sheet.getFirstRowNum();
-		firstCell = new CellAddress(firstRow, Short.MAX_VALUE);
-		lastCell = new CellAddress(sheet.getLastRowNum(), 0);
-		for (int i = firstRow; i < sheet.getLastRowNum(); i++) {
+		int lastRow = sheet.getLastRowNum();
+		//Always parser from the first column 
+		firstCell = new CellAddress(firstRow, 0);
+		CellAddress cfgLastCell =null;
+		if (lastCellName instanceof String) {
+			cfgLastCell = new CellAddress((String)lastCellName);
+		}
+		lastCell = cfgLastCell != null ? cfgLastCell : new CellAddress(lastRow, 0);
+		for (int i = firstRow; i <= lastCell.getRow(); i++) {
 			Row row = sheet.getRow(i);
 			if (row == null) continue;
 			short minColInd = row.getFirstCellNum();
 			short maxColInd = row.getLastCellNum();
-			if (lastCell.getColumn() < maxColInd) {
+			if (lastCell.getColumn() < maxColInd && cfgLastCell == null) {
 				lastCell = new CellAddress(lastCell.getRow(), maxColInd);
 			}
 			if (firstCell.getColumn() > minColInd) {
@@ -56,13 +65,15 @@ public class XlsxSheetModel extends HashMap<String, Object>{
 			merges.add(new MergeModel(rangeAddr));
 		}
 		for(int col = firstCell.getColumn(); col <= lastCell.getColumn(); col++) {
-			ColModel colModel = new ColModel();
-			//CellStyle colStyle = sheet.getColumnStyle(col);
+			ColModel colModel = new ColModel(col);
+			CellStyle colStyle = sheet.getColumnStyle(col);
 			int widthUnits = sheet.getColumnWidth(col); 
 			colModel.setWch(widthUnits/256);
 			float widthPx = poiWidthToPixels(widthUnits);
-			//float colWidthPx = sheet.getColumnWidthInPixels(col); 
-			colModel.setWpx(widthPx);
+			float colWidthPx = sheet.getColumnWidthInPixels(col); 
+			colModel.setWpx(colWidthPx);
+			colModel.setVerticalAligment(colStyle.getVerticalAlignment());
+			colModel.setHorizontalAligment(colStyle.getAlignment());
 			cols.add(colModel);
 		}
 		this.put("!ref", firstCell.toString() + ":" + lastCell.toString());
@@ -93,6 +104,8 @@ public class XlsxSheetModel extends HashMap<String, Object>{
 }
 	private void parseRow(Row row, Workbook workbook, XlsxWorkboolModel workbookModel) {
 		int lastCell = row.getLastCellNum();
+		RowModel rowModel = new RowModel(row);
+		this.rows.add(rowModel);
 		for (int col = 0; col < lastCell; col++) {
 			Cell cell = row.getCell(col);
 			parseCell(cell, workbook,  workbookModel);

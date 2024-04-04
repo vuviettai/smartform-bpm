@@ -5,11 +5,13 @@ import java.util.Base64;
 import java.util.Date;
 
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFClientAnchor;
 import org.apache.poi.xssf.usermodel.XSSFPicture;
 import org.apache.poi.xssf.usermodel.XSSFShape;
+import org.openxmlformats.schemas.drawingml.x2006.main.CTPositiveSize2D;
 
 import lombok.Data;
 
@@ -98,9 +100,9 @@ public class XlsxCellModel {
 		default:
 			break;
 		}
-		s = new XlsxCellStyleModel();
-		s.parseStyle(cell.getCellStyle(), workbook,  workbookModel);
-		
-		
+		if (cell.getCellStyle() != null) {
+			s = new XlsxCellStyleModel();
+			s.parseStyle(cell.getCellStyle(), workbook,  workbookModel);
+		}
 	}
 }

@@ -51,6 +51,7 @@ public class FormioResource extends AbstractResource {
 	public static final String FORM_USER = "formuser";
 	public static final String FORM_GROUP = "formgroup";
 	public static final String FORM_ROLE = "formrole";
+	public static final String TEMPLATE_LAST_CELL = "lastCell";
 
 	@RestClient
 	@Inject
@@ -316,6 +317,7 @@ public class FormioResource extends AbstractResource {
 					templateField = "templateFile";
 				}
 				Object templateFiles = SubmissionUtil.getFieldValue(submission, templateField);
+				Object lastCell = SubmissionUtil.getFieldValue(submission, TEMPLATE_LAST_CELL);
 				if (templateFiles instanceof List) {
 					for (Object tplFile : (List)templateFiles) {
 						Map<String, Object> mapTplProps = (HashMap<String, Object>) tplFile;
@@ -329,7 +331,7 @@ public class FormioResource extends AbstractResource {
 								ByteArrayInputStream bais = new ByteArrayInputStream(decoder.decode(base64Encoded));
 								Workbook workbook = new XSSFWorkbook(bais);
 								XlsxWorkboolModel workbookModel = new XlsxWorkboolModel();
-								workbookModel.parse(workbook);
+								workbookModel.parse(workbook, lastCell);
 								workbookModel.setStorage(storage);
 								workbookModel.setType(type);
 								xlsxModels.add(workbookModel);

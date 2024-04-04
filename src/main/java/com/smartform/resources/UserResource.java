@@ -27,11 +27,11 @@ import jakarta.ws.rs.core.Response;
  *
  * @author serhiy
  */
-@Path("/users")
-@Produces("application/json")
-@Consumes("application/json")
-@ApplicationScoped
-@Authenticated
+//@Path("/users")
+//@Produces("application/json")
+//@Consumes("application/json")
+//@ApplicationScoped
+//@Authenticated
 public class UserResource {
     @Inject
     UserRepository userRepository;
