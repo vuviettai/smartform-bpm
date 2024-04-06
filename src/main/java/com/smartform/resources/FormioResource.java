@@ -284,7 +284,7 @@ public class FormioResource extends AbstractResource {
 			if (submission != null) {
 				// Load reference;
 				Optional<String> partnerGroup = getPartnerGroupName(identity);
-				if (partnerGroup.isPresent()) {
+				if (partnerGroup.isPresent() && hasPartnerField(formId)) {
 					if(submission.getData() != null 
 							&& partnerGroup.get().equals(submission.getData().get(FORMIO_COMPONENT_PARTNER))) {
 						submissionUtil.loadReferenceSubmissions(Arrays.asList(submission));

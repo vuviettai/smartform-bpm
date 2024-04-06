@@ -19,13 +19,15 @@ public class ShapeModel {
 	private double h;
 	private Coordinate s;
 	private Coordinate e;
+
 	public ShapeModel(XSSFShape shape) {
 		parseShape(shape);
 	}
+
 	public void parseShape(XSSFShape shape) {
 		name = shape.getShapeName();
-		XSSFDrawing drawing = shape.getDrawing();
-		XSSFPicture picture =null;
+		// XSSFDrawing drawing = shape.getDrawing();
+		XSSFPicture picture = null;
 		if (shape instanceof XSSFPicture) {
 			picture = (XSSFPicture) shape;
 		}

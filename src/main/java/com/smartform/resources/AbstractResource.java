@@ -67,19 +67,20 @@ public abstract class AbstractResource {
 	}
 	protected void injectQueryParams(String formId, MultivaluedMap<String, String> queryParams) {
 		Optional<String> groupName = getPartnerGroupName(identity);
-		if(groupName.isPresent()) {
+		if(groupName.isPresent() && hasPartnerField(formId)) {
 			LOG.debugf("Inject group name %s", groupName.get());
-			try {
-				FormioForm formioForm = formioService.getForm(formId);
-				Optional<Object> fieldPartnerGroup = getField(formioForm.getComponents(), FORMIO_COMPONENT_PARTNER);
-				if (fieldPartnerGroup.isPresent()) {
-					queryParams.putSingle("data.partner", groupName.get());
-				}
-			} catch (WebApplicationException e) {
-				e.printStackTrace();
-			}
-			
+			queryParams.putSingle("data.partner", groupName.get());
 		}
+	}
+	protected boolean hasPartnerField(String formId) {
+		try {
+			FormioForm formioForm = formioService.getForm(formId);
+			Optional<Object> fieldPartnerGroup = getField(formioForm.getComponents(), FORMIO_COMPONENT_PARTNER);
+			return fieldPartnerGroup.isPresent();
+		} catch (WebApplicationException e) {
+			e.printStackTrace();
+		}
+		return false;
 	}
 	protected void injectPartnerGroup(Submission submission) {
 		Optional<String> groupName = getPartnerGroupName(identity);
