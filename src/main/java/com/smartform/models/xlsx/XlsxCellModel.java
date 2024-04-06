@@ -78,7 +78,8 @@ public class XlsxCellModel {
 				t = "e";
 				break;
 			case FORMULA:
-				t = "f";
+				//Front does not support type 'f'
+				t = "z";
 				f = cell.getCellFormula();
 				v = cell.getCellFormula();
 				break;
