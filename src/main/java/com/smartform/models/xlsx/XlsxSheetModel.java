@@ -12,10 +12,13 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellAddress;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.util.Units;
 import org.apache.poi.xssf.usermodel.XSSFAnchor;
 import org.apache.poi.xssf.usermodel.XSSFClientAnchor;
 import org.apache.poi.xssf.usermodel.XSSFDrawing;
 import org.apache.poi.xssf.usermodel.XSSFShape;
+
+import com.smartform.utils.StringUtil;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -28,6 +31,7 @@ public class XlsxSheetModel extends HashMap<String, Object>{
 	private List<ColModel> cols = new ArrayList<ColModel>();
 	private List<RowModel> rows = new ArrayList<RowModel>();
 	private List<ShapeModel> shapes = new ArrayList<ShapeModel>();
+	private List<BorderModel> borders = new ArrayList<BorderModel>();
 	private int firstRow = 0;
 	private CellAddress firstCell;
 	private CellAddress lastCell;
@@ -37,6 +41,7 @@ public class XlsxSheetModel extends HashMap<String, Object>{
 		this.put("!merges", merges);
 		this.put("!shapes", shapes);
 		this.put("!rows", rows);
+		this.put("!borders", borders);
 	}
 	public void parse(Sheet sheet, XlsxWorkboolModel workbookModel, Object lastCellName) {
 		firstRow = sheet.getFirstRowNum();
@@ -44,7 +49,7 @@ public class XlsxSheetModel extends HashMap<String, Object>{
 		//Always parser from the first column 
 		firstCell = new CellAddress(firstRow, 0);
 		CellAddress cfgLastCell =null;
-		if (lastCellName instanceof String) {
+		if (lastCellName instanceof String && !StringUtil.isEmpty((String)lastCellName)) {
 			cfgLastCell = new CellAddress((String)lastCellName);
 		}
 		lastCell = cfgLastCell != null ? cfgLastCell : new CellAddress(lastRow, 0);
@@ -69,8 +74,11 @@ public class XlsxSheetModel extends HashMap<String, Object>{
 			CellStyle colStyle = sheet.getColumnStyle(col);
 			int widthUnits = sheet.getColumnWidth(col); 
 			colModel.setWch(widthUnits/256);
+			//ShippingEms prefers poiWidthToPixels
+			//Receipt review prefers getColumnWidthInPixels
 			float widthPx = poiWidthToPixels(widthUnits);
-			float colWidthPx = sheet.getColumnWidthInPixels(col); 
+			//float colWidthPx = sheet.getColumnWidthInPixels(col); 
+			float colWidthPx = (float)(widthUnits/256.0*Units.DEFAULT_CHARACTER_WIDTH);
 			colModel.setWpx(colWidthPx);
 			colModel.setVerticalAligment(colStyle.getVerticalAlignment());
 			colModel.setHorizontalAligment(colStyle.getAlignment());
@@ -108,14 +116,95 @@ public class XlsxSheetModel extends HashMap<String, Object>{
 		this.rows.add(rowModel);
 		for (int col = 0; col < lastCell; col++) {
 			Cell cell = row.getCell(col);
+			if (cell == null) continue;
 			parseCell(cell, workbook,  workbookModel);
+			parseCellBorder(cell);
 		}
 	}
 	private void parseCell(Cell cell, Workbook workbook, XlsxWorkboolModel workbookModel) {
-		if (cell != null) {
-			XlsxCellModel cellModel = new XlsxCellModel();
-			cellModel.parse(cell, workbook, workbookModel);
-			this.put(cell.getAddress().toString(), cellModel);
+		XlsxCellModel cellModel = new XlsxCellModel();
+		cellModel.parse(cell, workbook, workbookModel);
+		this.put(cell.getAddress().toString(), cellModel);
+	}
+	private void parseCellBorder(Cell cell) {
+		CellStyle cellStyle = cell.getCellStyle();
+		BorderModel borderModel = null;
+		switch (cellStyle.getBorderBottom()) {
+		case DASHED:
+			break;
+		case DASH_DOT:
+			break;
+		case DASH_DOT_DOT:
+			break;
+		case DOTTED:
+			break;
+		case DOUBLE:
+			break;
+		case HAIR:
+			break;
+		case MEDIUM:
+			break;
+		case MEDIUM_DASHED:
+			break;
+		case MEDIUM_DASH_DOT:
+			break;
+		case MEDIUM_DASH_DOT_DOT:
+			break;
+		case NONE:
+			if (borderModel == null) {
+				borderModel = new BorderModel(cell);
+			}
+			borderModel.setBottom(0, "#fff");
+			break;
+		case SLANTED_DASH_DOT:
+			break;
+		case THICK:
+			break;
+		case THIN:
+			break;
+		default:
+			break;
+		
+		}
+		switch (cellStyle.getBorderTop()) {
+		case DASHED:
+			break;
+		case DASH_DOT:
+			break;
+		case DASH_DOT_DOT:
+			break;
+		case DOTTED:
+			break;
+		case DOUBLE:
+			break;
+		case HAIR:
+			break;
+		case MEDIUM:
+			break;
+		case MEDIUM_DASHED:
+			break;
+		case MEDIUM_DASH_DOT:
+			break;
+		case MEDIUM_DASH_DOT_DOT:
+			break;
+		case NONE:
+			if (borderModel == null) {
+				borderModel = new BorderModel(cell);
+			}
+			borderModel.setTop(0, "#fff");
+			break;
+		case SLANTED_DASH_DOT:
+			break;
+		case THICK:
+			break;
+		case THIN:
+			break;
+		default:
+			break;
+		
+		}
+		if (borderModel != null) {
+			this.borders.add(borderModel);
 		}
 	}
 }
