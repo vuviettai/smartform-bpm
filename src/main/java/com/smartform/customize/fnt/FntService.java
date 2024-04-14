@@ -82,7 +82,7 @@ public class FntService {
 			if (value instanceof Number) {
 				end = ((Number)value).intValue();
 			} 	
-			if (end > start) {
+			if (end >= start) {
 				List<Submission> listPackages = createPackages(receipt, start, end);
 				//Auto allocate manifest items
 				
@@ -90,7 +90,7 @@ public class FntService {
 					String pkgCode = (String)SubmissionUtil.getFieldValue(packageSub, PACKAGE_CODE);
 					List<Map<String, Object>> pkgItems = mapPackageItems.get(pkgCode);
 					if (pkgItems != null) {
-						SubmissionUtil.setDataValue(receipt, MANIFEST_ITEMS, pkgItems);
+						SubmissionUtil.setDataValue(packageSub, MANIFEST_ITEMS, pkgItems);
 					}
 ;					Submission createdPackage = formioService.createSubmission(createFormId, packageSub);
 					createdPackages.add(createdPackage);
