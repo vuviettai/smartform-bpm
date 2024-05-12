@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
-import com.fasterxml.jackson.databind.deser.impl.CreatorCandidate.Param;
 import com.smartform.rest.model.FormioForm;
 import com.smartform.rest.model.Submission;
 import com.smartform.utils.SubmissionUtil;
@@ -259,7 +258,7 @@ public class CommissionPolicy {
 			}
 		}
 		if (value != null) {
-			Map<String, String> policyRef = Map.of(Submission.FORM, submission.getForm(), Submission._ID, submission.get_id());
+			Map<String, String> policyRef = Map.of(Submission.FORM, submission.getFormId(), Submission._ID, submission.getId());
 			Map<String, String> beneficiaryRef = Map.of(Submission.FORM, beneficiaryFormId, Submission._ID, beneficiaryId);
 			Map<String, Object> data = new HashMap<String, Object>();
 			StringJoiner stringJoiner = new StringJoiner(", ");
@@ -272,7 +271,7 @@ public class CommissionPolicy {
 			data.put("totalAmount", value);
 			data.put("description", commaSeparatedString);
 			data.put("period",period);
-			headerCommission = new Submission(formCommission.get_id(), data);
+			headerCommission = new Submission(formCommission.getId(), data);
 			if (commissionRounds instanceof List) {
 				if (COMMISSION_PATTERN_BYCONTRACT.equalsIgnoreCase(pattern)) {
 					detailCommissions = createByContractCommissionTrans(formCommissionTran, (List<Map<String, Object>>)commissionRounds, policyRef, 
@@ -297,7 +296,7 @@ public class CommissionPolicy {
 		 */
 		for (Submission contract : contracts) {
 			Map<String, String> contractRef = SubmissionUtil.createReferenceMap(contract);
-			List<Submission> noptiens = noptienByContract != null ? noptienByContract.get(contract.get_id()): null;
+			List<Submission> noptiens = noptienByContract != null ? noptienByContract.get(contract.getId()): null;
 			Float remainValue = commissionPerContract;
 			Map<String, Object> remainData = null;
 			for(int ind = 0 ; ind < commissionRounds.size(); ind++) {
@@ -317,7 +316,7 @@ public class CommissionPolicy {
 						data.put("ngayPhatSinh", SubmissionUtil.getFieldValue(noptien, "ngayNop"));
 						data.put("noptien", SubmissionUtil.createReferenceMap(noptien));
 					}
-					Submission comTran = new Submission(form.get_id(), data);
+					Submission comTran = new Submission(form.getId(), data);
 					commissionTrans.add(comTran);
 				} else {
 					remainData = round;
@@ -331,7 +330,7 @@ public class CommissionPolicy {
 				data.put(COMMISSION_TRAN_STATUS, "temporary");		
 				data.put("period",period);					
 				data.put("value", remainValue);
-				Submission comTran = new Submission(form.get_id(), data);
+				Submission comTran = new Submission(form.getId(), data);
 				commissionTrans.add(comTran);
 			}
 		}
@@ -352,7 +351,7 @@ public class CommissionPolicy {
 				data.put(COMMISSION_BENEFICIARY, beneficiaryRef);
 				data.put(COMMISSION_TRAN_STATUS, "temporary");
 				data.put("period",period);		
-				Submission comTran = new Submission(form.get_id(), data);
+				Submission comTran = new Submission(form.getId(), data);
 				commissionTrans.add(comTran);
 			} else {
 				remainData = round;
@@ -365,10 +364,9 @@ public class CommissionPolicy {
 			data.put(COMMISSION_TRAN_STATUS, "temporary");		
 			data.put("period",period);					
 			data.put("value", remainValue);
-			Submission comTran = new Submission(form.get_id(), data);
+			Submission comTran = new Submission(form.getId(), data);
 			commissionTrans.add(comTran);
 		}
-		
 		return commissionTrans;
 	}
 	public static Submission mergeCommission(Submission dest, Submission update) {

@@ -9,11 +9,12 @@ import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.resteasy.reactive.RestResponse;
 
 import com.smartform.models.SubmissionRef;
-import com.smartform.rest.client.FormioService;
+import com.smartform.rest.client.FormioClient;
 import com.smartform.rest.model.FormioForm;
 import com.smartform.rest.model.Submission;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 
@@ -21,23 +22,9 @@ import jakarta.ws.rs.core.MultivaluedMap;
 public class SubmissionUtil {
 
 	@RestClient
-	FormioService formioService;
+	@Inject
+	FormioClient formioService;
 
-	// public SubmissionUtil(FormioService formioService) {
-	// super();
-	// this.formioService = formioService;
-	// }
-	//
-//	public FormioForm getFormByName(String name) {
-//		FormioForm result = null;
-//		MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
-//		params.add("name", name);
-//		List<FormioForm> forms = formioService.queryForms(params);
-//		if (forms != null && forms.size() > 0) {
-//			result = forms.get(0);
-//		}
-//		return result;
-//	}
 
 	public FormioForm getFormById(String formId) {
 		FormioForm result = formioService.getForm(formId);
@@ -55,10 +42,10 @@ public class SubmissionUtil {
 	}
 	public Submission getLastSubmission(String formId, List<String> selectFields) {
 		MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
-		params.putSingle(FormioService.LIMIT, "1");
-		params.putSingle(FormioService.SORT, "-created");
+		params.putSingle(FormioClient.LIMIT, "1");
+		params.putSingle(FormioClient.SORT, "-created");
 		if (selectFields != null) {
-			params.putSingle(FormioService.SELECT, String.join(",", selectFields));
+			params.putSingle(FormioClient.SELECT, String.join(",", selectFields));
 		}
 		RestResponse<List<Submission>> response = formioService.getSubmissions(formId, params);
 		List<Submission> entity = response.getEntity();
@@ -131,7 +118,7 @@ public class SubmissionUtil {
 			//Get submission by each form
 			List<Submission> listReferences = querySubmissionsByFormId(entry.getKey(), params);
 			for (Submission submission : listReferences) {
-				mapReferenceSubmissions.put(new SubmissionRef(entry.getKey(), submission.get_id()), submission);
+				mapReferenceSubmissions.put(new SubmissionRef(entry.getKey(), submission.get_id().toString()), submission);
 			}
 			
 		}
@@ -181,9 +168,9 @@ public class SubmissionUtil {
 			for (Submission submission : submissions) {
 				Submission stored = null;
 				if (submission.get_id() != null) {
-					stored = formioService.putSubmission(form.get_id(), submission.get_id(), submission);
+					stored = formioService.putSubmission(form.get_id().toString(), submission.get_id().toString(), submission);
 				} else {
-					stored = formioService.createSubmission(form.get_id(), submission);
+					stored = formioService.createSubmission(form.get_id().toString(), submission);
 				}
 				storedSubmissions.add(stored);
 			}
@@ -195,7 +182,7 @@ public class SubmissionUtil {
 		List<Submission> deletedSubmissions = new ArrayList<Submission>();
 		if (form != null) {
 			for (Submission submission : submissions) {
-				Submission deleted = formioService.deleteSubmission(form.get_id(), submission.get_id());
+				Submission deleted = formioService.deleteSubmission(form.get_id().toString(), submission.get_id().toString());
 				deletedSubmissions.add(deleted);
 			}
 		}
@@ -225,7 +212,7 @@ public class SubmissionUtil {
 	}
 
 	public static Map<String, String> createReferenceMap(Submission submission) {
-		return Map.of(Submission.FORM, submission.getForm(), Submission._ID, submission.get_id());
+		return Map.of(Submission.FORM, submission.getFormId(), Submission._ID, submission.getId());
 	}
 
 	public static List<SubmissionRef> toSubmissionReference(Object value) {
@@ -253,7 +240,7 @@ public class SubmissionUtil {
 		Map<String, Submission> result = new HashMap<String, Submission>();
 		if (submissions != null && submissions.size() > 0) {
 			for (Submission submission : submissions) {
-				result.put(submission.get_id(), submission);
+				result.put(submission.get_id().toString(), submission);
 			}
 		}
 		return result;

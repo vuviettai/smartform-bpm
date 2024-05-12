@@ -5,7 +5,7 @@ import java.util.List;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
-import com.smartform.rest.client.FormioService;
+import com.smartform.rest.client.FormioClient;
 import com.smartform.rest.client.FormsflowService;
 
 import io.quarkus.runtime.Startup;
@@ -17,7 +17,7 @@ import jakarta.inject.Inject;
 public class FormInit {
 	@RestClient
 	@Inject
-	FormioService formioService;
+	FormioClient formioService;
 	@RestClient
 	@Inject
 	FormsflowService formsflowService;

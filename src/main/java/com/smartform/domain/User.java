@@ -11,15 +11,10 @@ import jakarta.persistence.Id;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/**
- * User entity which provides access to user objects in database
- *
- * @author serhiy
- */
 @Data
 @EqualsAndHashCode(callSuper=true)
 @RegisterForReflection
-@Entity(name="users")
+//@Entity(name="users")
 public class User extends EntityBase {
 	@Id
     @GeneratedValue(strategy = GenerationType.UUID)

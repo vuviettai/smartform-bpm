@@ -8,7 +8,7 @@ import org.jboss.resteasy.reactive.RestResponse.ResponseBuilder;
 
 import com.appbike.jdbc.pg.PostgresQuery;
 import com.mongodb.client.MongoClient;
-import com.smartform.rest.client.FormioService;
+import com.smartform.rest.client.FormioClient;
 
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
@@ -19,7 +19,7 @@ public class MetadataResource extends AbstractResource {
 
 	@RestClient
 	@Inject
-	FormioService formioService;
+	FormioClient formioService;
 
 	@Inject
 	MongoClient client;

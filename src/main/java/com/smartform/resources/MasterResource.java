@@ -19,7 +19,7 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.result.DeleteResult;
-import com.smartform.rest.client.FormioService;
+import com.smartform.rest.client.FormioClient;
 import com.smartform.rest.model.Submission;
 
 import jakarta.inject.Inject;
@@ -34,7 +34,7 @@ public class MasterResource extends AbstractResource {
 
 	@RestClient
 	@Inject
-	FormioService formioService;
+	FormioClient formioService;
 
 	@Inject
 	MongoClient client;
@@ -119,7 +119,7 @@ public class MasterResource extends AbstractResource {
 		submission.setAccess(item.getAccess());
 		submission.setCreated(new Date());
 		submission.setExternalIds(new ArrayList<String>());
-		submission.setForm(form);
+		submission.setForm(new ObjectId(form));
 		submission.setMetadata(item.getMetadata());
 		submission.setOwner(item.getOwner());
 		submission.setRoles(item.getRoles());

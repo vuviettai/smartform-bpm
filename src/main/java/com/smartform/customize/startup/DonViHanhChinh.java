@@ -9,7 +9,7 @@ import com.smartform.customize.models.GeoInfo;
 import com.smartform.customize.service.GeoService;
 import com.smartform.customize.service.MongodbService;
 import com.smartform.models.Tree;
-import com.smartform.rest.client.FormioService;
+import com.smartform.rest.client.FormioClient;
 
 import io.quarkus.runtime.Startup;
 import io.smallrye.config.SmallRyeConfig;
@@ -27,7 +27,7 @@ public class DonViHanhChinh {
     MongodbService mongodbService;
 	@RestClient
 	@Inject
-	FormioService formioService;
+	FormioClient formioService;
 	@Startup
 	void init() { 
 		try {

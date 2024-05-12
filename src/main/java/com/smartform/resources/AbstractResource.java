@@ -8,16 +8,16 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.jboss.resteasy.reactive.RestResponse.ResponseBuilder;
 import org.jboss.resteasy.reactive.RestResponse.Status;
 import org.keycloak.admin.client.Keycloak;
 
-import com.smartform.rest.client.FormioService;
+import com.smartform.rest.model.FormComponent;
 import com.smartform.rest.model.FormioForm;
 import com.smartform.rest.model.Submission;
+import com.smartform.services.FormioService;
 
 import io.quarkus.oidc.runtime.OidcJwtCallerPrincipal;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -43,7 +43,6 @@ public abstract class AbstractResource {
 	@Inject
     Keycloak keycloak;
 	
-	@RestClient
 	@Inject
 	protected FormioService formioService;
 	
@@ -65,6 +64,8 @@ public abstract class AbstractResource {
 		}		
 		return builder;
 	}
+
+	
 	protected void injectQueryParams(String formId, MultivaluedMap<String, String> queryParams) {
 		Optional<String> groupName = getPartnerGroupName(identity);
 		if(groupName.isPresent() && hasPartnerField(formId)) {
@@ -74,7 +75,7 @@ public abstract class AbstractResource {
 	}
 	protected boolean hasPartnerField(String formId) {
 		try {
-			FormioForm formioForm = formioService.getForm(formId);
+			FormioForm formioForm = formioService.getFormModelById(formId);
 			Optional<Object> fieldPartnerGroup = getField(formioForm.getComponents(), FORMIO_COMPONENT_PARTNER);
 			return fieldPartnerGroup.isPresent();
 		} catch (WebApplicationException e) {
@@ -116,7 +117,7 @@ public abstract class AbstractResource {
 		}
 		return Optional.empty();
 	}
-	protected Optional<Object> getField(List<Object> components, String fieldName) {
+	protected Optional<Object> getField(List<FormComponent> components, String fieldName) {
 		if (components != null) {
 			LinkedList<Object> queue = new LinkedList<Object>(components);
 			Object component = queue.pollFirst(); 

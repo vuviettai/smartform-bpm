@@ -25,7 +25,7 @@ import jakarta.ws.rs.core.MultivaluedMap;
 @RegisterProvider(FormioResponseHeaderFilter.class)		//Remove header, use config from rest resource
 @RegisterClientHeaders(FormioClientHeaderFactory.class)
 //@ClientHeaderParam(name = "X-Jwt-Token", value = "${formio.jwt-secret}")
-public interface FormioService {
+public interface FormioClient {
 	public static final String LIMIT 	= "limit";
 	public static final String SORT 	= "sort";
 	public static final String SELECT 	= "select";
