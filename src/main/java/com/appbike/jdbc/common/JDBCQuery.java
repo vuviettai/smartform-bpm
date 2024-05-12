@@ -1,6 +1,7 @@
 package com.appbike.jdbc.common;
 
 import java.io.IOException;
+import java.util.function.Function;
 
 import org.hibernate.dialect.Dialect;
 import org.hibernate.sql.ast.spi.StringBuilderSqlAppender;
@@ -42,6 +43,18 @@ public abstract class JDBCQuery implements IJDBCQuery {
 			e.printStackTrace();
 		}
     	return sqlBuilder.toString();
+    }
+    public<O> Multi<O> execute(String query, Function<? super Row, ? extends O> mapper) {
+    	Multi<O> result = null;
+    	try {
+    		Pool pool = this.getClientPool();
+	    	Uni<RowSet<Row>> uniRows = pool.query(query).execute();
+	    	result = uniRows
+	    			  .onItem().transformToMulti(set -> Multi.createFrom().iterable(set)).map(mapper);
+    	} catch (Exception e) {
+    		e.printStackTrace();
+    	}
+    	return result;
     }
     public Multi<Row> execute(String entityName, String query) {
     	Multi<Row> result = null;
