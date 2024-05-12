@@ -8,12 +8,12 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import lombok.Data;
-/*
- * Liệu trình điều trị
- */
+import lombok.EqualsAndHashCode;
+
 @Data
+@EqualsAndHashCode(callSuper=false)
 @RegisterForReflection
-@Entity(name="tenants")
+// @Entity(name="tenants")
 public class Tenant extends EntityBase {
 	@Id
     @GeneratedValue(strategy = GenerationType.UUID)

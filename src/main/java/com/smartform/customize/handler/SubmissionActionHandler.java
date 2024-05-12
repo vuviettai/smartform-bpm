@@ -10,7 +10,7 @@ import com.smartform.customize.fnt.FntService;
 import com.smartform.customize.vgec.CommissionPolicy;
 import com.smartform.customize.vgec.CommissionService;
 import com.smartform.models.ActionResult;
-import com.smartform.rest.client.FormioService;
+import com.smartform.rest.client.FormioClient;
 import com.smartform.rest.model.Submission;
 import com.smartform.utils.SubmissionUtil;
 
@@ -31,7 +31,7 @@ public class SubmissionActionHandler {
 	
 	@RestClient
 	@Inject
-	FormioService formioService;
+	FormioClient formioService;
 	@Inject
 	SubmissionUtil submissionUtil;
 	@Inject

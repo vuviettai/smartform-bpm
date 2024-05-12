@@ -6,7 +6,7 @@ import java.util.Map;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.resteasy.reactive.RestPath;
 
-import com.smartform.rest.client.FormioService;
+import com.smartform.rest.client.FormioClient;
 
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
@@ -17,7 +17,7 @@ public class LocaleResource {
 	
 	@RestClient 
 	@Inject
-    FormioService formioService;
+    FormioClient formioService;
 	
 	@Path("/{lang}/{ns}.json")
 	@GET

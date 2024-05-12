@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -26,6 +28,7 @@ import com.smartform.rest.client.FormsflowService;
 import com.smartform.rest.model.FormioForm;
 import com.smartform.rest.model.Submission;
 import com.smartform.rest.model.Submissions;
+import com.smartform.storage.mongo.entity.EntityMapper;
 import com.smartform.utils.SubmissionUtil;
 
 import jakarta.inject.Inject;
@@ -53,6 +56,9 @@ public class FormioResource extends AbstractResource {
 	public static final String FORM_ROLE = "formrole";
 	public static final String TEMPLATE_LAST_CELL = "lastCell";
 
+	@Inject
+    EntityMapper entityMapper
+    ;
 	@RestClient
 	@Inject
 	FormsflowService formsflowService;
@@ -94,7 +100,8 @@ public class FormioResource extends AbstractResource {
 		List<FormioForm> response = null;
 		MultivaluedMap<String, String> params = uriInfo.getPathParameters();
 		try {
-			response = formioService.queryForms(params);
+			Stream<com.smartform.storage.mongo.entity.FormioForm> entities = formioService.queryFormAsStream(params);
+			response = entities.map(entity -> entityMapper.toModel(entity)).collect(Collectors.toList());
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
 		}
@@ -106,7 +113,10 @@ public class FormioResource extends AbstractResource {
 	public FormioForm getForm(@RestPath String formId) {
 		FormioForm formioForm = null;
 		try {
-			formioForm = formioService.getForm(formId);
+			com.smartform.storage.mongo.entity.FormioForm entity = formioService.getFormById(formId);
+			if (entity != null) {
+				formioForm = entityMapper.toModel(entity);
+			}
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
 		}
@@ -120,7 +130,6 @@ public class FormioResource extends AbstractResource {
 	public RestResponse<List<Submission>> getSubmissions(@RestPath String formId, @Context UriInfo uriInfo) {
 		List<Submission> submissions = null;
 		ResponseBuilder<List<Submission>> builder = null;
-		RestResponse<List<Submission>> clientResponse = null;
 		try {
 			MultivaluedMap<String, String> queryParams = new MultivaluedHashMap<String, String>(uriInfo.getQueryParameters()); //parseQueryParams(formId, uriInfo);
 			injectQueryParams(formId, queryParams);
@@ -133,9 +142,9 @@ public class FormioResource extends AbstractResource {
 			
 //			submissions = mongodbService.getSubmissions(formId, queryParams);
 //			builder = ResponseBuilder.ok(submissions, MediaType.APPLICATION_JSON);
-			clientResponse = formioService.getSubmissions(formId, queryParams);
-			builder = createResponseBuilder(clientResponse);
-			submissions = clientResponse.getEntity();
+//			List<com.smartform.storage.mongo.entity.Submission> entities = formioService.getSubmissionAsStream(formId, queryParams).collect(Collectors.toList());
+			submissions = formioService.getSubmissionAsStream(formId, queryParams).map(entity -> entityMapper.toModel(entity)).collect(Collectors.toList());
+			// builder = createResponseBuilder(clientResponse);
 			
 			if (submissions != null) {
 				submissionUtil.loadReferenceSubmissions(submissions);
@@ -144,6 +153,9 @@ public class FormioResource extends AbstractResource {
 				// loadReferenceSubmissions((Map<String, Object>)submission.getData());
 				// }
 				// }
+				builder = ResponseBuilder.ok(submissions, MediaType.APPLICATION_JSON);	
+			} else {
+				builder = ResponseBuilder.<List<Submission>>noContent();
 			}
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
@@ -263,14 +275,15 @@ public class FormioResource extends AbstractResource {
 	@DELETE
 	public RestResponse<Object> deleteSubmissions(@RestPath String formId, List<String> submissionIds) {
 		if (submissionIds != null) {
-			for (String submissionId : submissionIds) {
-				try {
-					Submission deletedSubmission = formioService.deleteSubmission(formId, submissionId);
-				} catch (WebApplicationException e) {
-					e.printStackTrace();
-					return ResponseBuilder.serverError().build();
-				}
-			}
+			formioService.deleteSubmissions(submissionIds);
+//			for (String submissionId : submissionIds) {
+//				try {
+//					Submission deletedSubmission = formioService.deleteSubmission(submissionId);
+//				} catch (WebApplicationException e) {
+//					e.printStackTrace();
+//					return ResponseBuilder.serverError().build();
+//				}
+//			}
 		}
 		return ResponseBuilder.accepted().build();
 	}
@@ -280,7 +293,7 @@ public class FormioResource extends AbstractResource {
 	public Submission getSubmission(@RestPath String formId, @RestPath String submissionId) {
 		Submission submission = null;
 		try {
-			submission = formioService.getSubmission(formId, submissionId);
+			submission = formioService.getSubmissionModel(formId, submissionId);
 			if (submission != null) {
 				// Load reference;
 				Optional<String> partnerGroup = getPartnerGroupName(identity);
@@ -310,7 +323,7 @@ public class FormioResource extends AbstractResource {
 		List<XlsxWorkboolModel> xlsxModels = new ArrayList<XlsxWorkboolModel>();
 		Submission submission = null;
 		try {
-			submission = formioService.getSubmission(formId, submissionId);
+			submission = formioService.getSubmissionModel(formId, submissionId);
 			if (submission != null) {
 				// Load reference;
 				if (templateField == null) {
@@ -383,23 +396,27 @@ public class FormioResource extends AbstractResource {
 	@Path("/{formId}/submission/{submissionId}")
 	@DELETE
 	public Submission deleteSubmission(@RestPath String formId, @RestPath String submissionId) {
-		Submission deleted = null;
+		Submission result = null;
+		boolean deleted = false;
 		try {
 			Optional<String> partnerGroup = getPartnerGroupName(identity);
 			if (partnerGroup.isEmpty()) {
-				deleted = formioService.deleteSubmission(formId, submissionId);
+				result = formioService.getSubmissionModel(formId, submissionId);
+				if (result != null) {
+					deleted = formioService.deleteSubmission(submissionId);
+				}
 			} else {
-				deleted = getSubmission(formId, submissionId);
-				if (deleted != null && deleted.getData() != null 
-						&& partnerGroup.get().equals(deleted.getData().get(KEYCLOAK_GROUP_PARTNER))) {
-					deleted =  formioService.deleteSubmission(formId, submissionId);
+				result = getSubmission(formId, submissionId);
+				if (result != null && result.getData() != null 
+						&& partnerGroup.get().equals(result.getData().get(KEYCLOAK_GROUP_PARTNER))) {
+					deleted = formioService.deleteSubmission(submissionId);
 				}
 			}
 		} catch (WebApplicationException e) {
 			e.printStackTrace();
 		}
 
-		return deleted;
+		return result;
 	}
 
 	@Path("/{formId}/submission/{submissionId}/submissionAction")
@@ -428,7 +445,7 @@ public class FormioResource extends AbstractResource {
 		result.setSubmissionId(submissionId);
 		result.setParams(params);
 		String openFormId = (String) params.get(OPEN_FORM_ID);
-		Submission submission = formioService.getSubmission(formId, submissionId);
+		Submission submission = formioService.getSubmissionModel(formId, submissionId);
 		if (submission != null && openFormId != null) {
 			try { 
 				Optional<String> partnerGroup = getPartnerGroupName(identity);
@@ -438,7 +455,6 @@ public class FormioResource extends AbstractResource {
 				submission.setForm(null);
 				submission.set_id(null);
 				Submission createdSubmission = formioService.createSubmission(openFormId, submission);
-				result.setSubmissionId(createdSubmission.get_id());
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

@@ -11,7 +11,7 @@ import java.util.Map;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 import com.smartform.models.ActionResult;
-import com.smartform.rest.client.FormioService;
+import com.smartform.rest.client.FormioClient;
 import com.smartform.rest.model.Submission;
 import com.smartform.utils.StringUtil;
 import com.smartform.utils.SubmissionUtil;
@@ -64,7 +64,7 @@ public class FntService {
 	
 	@RestClient
 	@Inject
-	FormioService formioService;
+	FormioClient formioService;
 	
 	public List<Submission> generatePackage(Submission receipt, Map<String, List<Map<String, Object>>> mapPackageItems, Map<String, Object> requestParams) {
 		List<Submission> createdPackages = new ArrayList<Submission>();
@@ -216,7 +216,7 @@ public class FntService {
 					
 				}
 			}
-			formioService.putSubmission(submissionHangVe.getForm(), submissionHangVe.get_id(), submissionHangVe);
+			formioService.putSubmission(submissionHangVe.getFormId(), submissionHangVe.getId(), submissionHangVe);
 			
 		}
 		return result;
@@ -234,7 +234,7 @@ public class FntService {
 			Map<String, Object> params = new HashMap<String, Object>();
 			params.put(FntService.PARAM_CREATING_FORM_ID, formPackageId);
 			//queryParams.putSingle("form", formPackageId);
-			queryParams.putSingle("data.receipt._id", receipt.get_id());
+			queryParams.putSingle("data.receipt._id", receipt.getId());
 			Map<String, List<Map<String, Object>>> mapPkgItems = allocateManifestItems(receipt);
 			List<Submission> listPackages = formioService.getSubmissions(formPackageId, queryParams).getEntity();
 			if (listPackages == null || listPackages.size() == 0) {
@@ -247,7 +247,7 @@ public class FntService {
 					List<Map<String, Object>> pkgItems = mapPkgItems.get(pkgCode);
 					SubmissionUtil.setDataValue(pkgSubmission, MANIFEST_ITEMS, pkgItems);
 					try {
-						formioService.putSubmission(formPackageId, pkgSubmission.get_id(), pkgSubmission);
+						formioService.putSubmission(formPackageId, pkgSubmission.getId(), pkgSubmission);
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -265,9 +265,9 @@ public class FntService {
 								if (ind <= packageCounter) {
 									pkgEntity.setField("totalPackage", packageCounter);
 									setPackageData(pkgEntity, receipt);
-									formioService.putSubmission(formPackageId, pkgEntity.get_id(), pkgEntity);
+									formioService.putSubmission(formPackageId, pkgEntity.getId(), pkgEntity);
 								} else {
-									formioService.deleteSubmission(formPackageId, pkgEntity.get_id());
+									formioService.deleteSubmission(formPackageId, pkgEntity.getId());
 								}
 							} catch(Exception e) {
 								e.printStackTrace();
@@ -357,11 +357,11 @@ public class FntService {
 			createdMaster.setField("status", Status.Store.CREATED.getValue());
 			//createdMaster.setField("note", "");
 			createdMaster = formioService.createSubmission(formNhapKho, createdMaster);
-			Map<String, String> ref = Map.of(Submission.FORM, formNhapKho, Submission._ID, createdMaster.get_id());
+			Map<String, String> ref = Map.of(Submission.FORM, formNhapKho, Submission._ID, createdMaster.getId());
 			for(Submission hangVe: listKienHangVe) {
 				Submission hangNhapKho = new Submission(formHangNhapKho);
 				hangNhapKho.setField("master", ref);
-				hangNhapKho.setField("package", Map.of(Submission.FORM, formKienHangVe, Submission._ID, hangVe.get_id()));
+				hangNhapKho.setField("package", Map.of(Submission.FORM, formKienHangVe, Submission._ID, hangVe.getId()));
 				for(String field : new String[] {PACKAGE_CODE, "partner", "partnerCode"}) {
 					hangNhapKho.setField(field,SubmissionUtil.getFieldValue(hangVe, field));
 				}
@@ -369,7 +369,7 @@ public class FntService {
 				hangNhapKho.setField("deliveryMethod", Status.Store.NORMAL.getValue());
 				hangNhapKho.setField("status", Status.Store.CREATED.getValue());
 				hangVe.setField("status", Status.PackageStatus.STORED.getValue());
-				formioService.putSubmission(formKienHangVe, hangVe.get_id(), hangVe);
+				formioService.putSubmission(formKienHangVe, hangVe.getId(), hangVe);
 				hangNhapKho = formioService.createSubmission(formHangNhapKho, hangNhapKho);
 				createdDetails.add(hangNhapKho);
 			}
@@ -404,11 +404,11 @@ public class FntService {
 			createdMaster.setField("shipper", "");
 			//createdMaster.setField("note", "");
 			createdMaster = formioService.createSubmission(formXuatKho, createdMaster);
-			Map<String, String> ref = Map.of(Submission.FORM, formXuatKho, Submission._ID, createdMaster.get_id());
+			Map<String, String> ref = Map.of(Submission.FORM, formXuatKho, Submission._ID, createdMaster.getId());
 			for(Submission pkg: listPackages) {
 				Submission hangXuatKho = new Submission(formHangXuatKho);
 				hangXuatKho.setField("master", ref);
-				hangXuatKho.setField("package", Map.of(Submission.FORM, formHangTrongKho, Submission._ID, pkg.get_id()));
+				hangXuatKho.setField("package", Map.of(Submission.FORM, formHangTrongKho, Submission._ID, pkg.getId()));
 				for(String field : new String[] {PACKAGE_CODE, "partner"}) {
 					hangXuatKho.setField(field,SubmissionUtil.getFieldValue(pkg, field));
 				}
@@ -427,9 +427,9 @@ public class FntService {
 		if (params == null) {
 			params = new MultivaluedHashMap<String, String>();
 		}
-		params.putSingle(FormioService.LIMIT, "1");
-		params.putSingle(FormioService.SORT, "-created");
-		params.putSingle(FormioService.SELECT,"data." + fieldName);
+		params.putSingle(FormioClient.LIMIT, "1");
+		params.putSingle(FormioClient.SORT, "-created");
+		params.putSingle(FormioClient.SELECT,"data." + fieldName);
 		List<String> result = new ArrayList<String>();
 		Submission lastSubmission = submissionUtil.getLastSubmission(formId, Arrays.asList("data." + fieldName));
 		String lastCode = (lastSubmission != null) ? (String)SubmissionUtil.getFieldValue(lastSubmission, fieldName) : null;

@@ -5,6 +5,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import org.bson.types.ObjectId;
+
 import lombok.Data;
 
 /**
@@ -20,11 +22,11 @@ public class Submissions {
 	private List<Map<String, Object>> data;
 	private List<String> externalIds;
 	
-	private String form;
+	private ObjectId form;
 	private Metadata metadata;
 	private Date modified;
-	private String owner;
-	private String[] roles;
+	private ObjectId owner;
+	private List<ObjectId> roles;
 	
 	public Submission createSubmission(Map<String, Object> data) {
 		Submission submission = new Submission();
@@ -37,8 +39,11 @@ public class Submissions {
 		submission.setModified(modified);
 		submission.setOwner(owner);
 		submission.setRoles(roles);
-		if (data.containsKey(Submission._ID)) {
-			submission.set_id(String.valueOf(data.get(Submission._ID)));
+		Object submissionId = data.get(Submission._ID);
+		if (submissionId instanceof ObjectId) {
+			submission.set_id((ObjectId)submissionId);
+		} else if (submissionId instanceof String) {
+			submission.set_id(new ObjectId((String)submissionId));
 		}
 		return submission;
 	}

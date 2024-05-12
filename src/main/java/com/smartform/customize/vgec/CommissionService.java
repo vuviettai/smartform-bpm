@@ -78,7 +78,7 @@ public class CommissionService {
 			
 			//Create commission submission by contract list
 			for(Map.Entry<Object, List<Submission>> entry : mapGroups.entrySet()) {
-				BeneficiaryCommission commission = commissionPolicy.createCommission(formCommission, formCommissionTran, formBeneficiary.get_id(), 
+				BeneficiaryCommission commission = commissionPolicy.createCommission(formCommission, formCommissionTran, formBeneficiary.getId(), 
 						 String.valueOf(entry.getKey()), policyPeriod, entry.getValue(), mapNoptiens);
 				if (commission != null && commission.getHeader() != null) {
 					listCommissions.add(commission.getHeader());
@@ -113,7 +113,7 @@ public class CommissionService {
 		MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
 		params.putSingle("data.period", policyPeriod);
 		params.putSingle("limit", String.valueOf(Integer.MAX_VALUE));
-		List<Submission> currentCommissions = submissionUtil.querySubmissionsByFormId(formCommission.get_id(), params);
+		List<Submission> currentCommissions = submissionUtil.querySubmissionsByFormId(formCommission.getId(), params);
 		Map<Object, List<Submission>> mapByBeneficiary = SubmissionUtil.groupSubmissionsByField(currentCommissions, CommissionPolicy.COMMISSION_BENEFICIARY);
 		Set<Object> deletedBeneficiaries = new HashSet<Object>(mapByBeneficiary.keySet());
 		for(Submission commission : listCommissions) {
@@ -148,7 +148,7 @@ public class CommissionService {
 		MultivaluedMap<String, String> params = new MultivaluedHashMap<String, String>();
 		params.putSingle("data.period", policyPeriod);
 		params.putSingle("limit", String.valueOf(Integer.MAX_VALUE));
-		List<Submission> currentCommissions = submissionUtil.querySubmissionsByFormId(formCommissionTran.get_id(), params);
+		List<Submission> currentCommissions = submissionUtil.querySubmissionsByFormId(formCommissionTran.getId(), params);
 		Map<String, List<Submission>> mapDbSubmission = SubmissionUtil.groupSubmissionsByReference(currentCommissions, CommissionPolicy.COMMISSION_CONTRACT);
 		Map<String, List<Submission>> mapCurrentSubmission = SubmissionUtil.groupSubmissionsByReference(listCommissions, CommissionPolicy.COMMISSION_CONTRACT);
 		Set<Object> deletedContracts = new HashSet<Object>(mapDbSubmission.keySet());

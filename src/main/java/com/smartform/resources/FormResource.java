@@ -7,7 +7,7 @@ import java.util.Map;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.resteasy.reactive.RestPath;
 
-import com.smartform.rest.client.FormioService;
+import com.smartform.rest.client.FormioClient;
 import com.smartform.rest.client.FormsflowService;
 import com.smartform.rest.model.Formsflow;
 import com.smartform.rest.model.FormsflowPage;
@@ -24,7 +24,7 @@ public class FormResource {
 	public static String FORM_TYPE_RESOURCE = "resource";
 	@RestClient 
 	@Inject
-    FormioService formioService;
+    FormioClient formioClient;
 	
 	@RestClient 
 	@Inject

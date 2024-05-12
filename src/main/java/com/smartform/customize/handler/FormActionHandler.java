@@ -7,7 +7,7 @@ import org.eclipse.microprofile.rest.client.inject.RestClient;
 import com.smartform.customize.fnt.FntService;
 import com.smartform.customize.vgec.CommissionService;
 import com.smartform.models.ActionResult;
-import com.smartform.rest.client.FormioService;
+import com.smartform.rest.client.FormioClient;
 import com.smartform.utils.SubmissionUtil;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -23,7 +23,7 @@ public class FormActionHandler {
 	public static final String ACTION = "action";
 	@RestClient
 	@Inject
-	FormioService formioService;
+	FormioClient formioService;
 	@Inject
 	SubmissionUtil submissionUtil;
 	@Inject

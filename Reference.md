@@ -8,3 +8,5 @@ https://thorben-janssen.com/panache-repository-pattern/
 https://quarkus.io/guides/reactive-sql-clients
 https://quarkus.io/guides/openapi-swaggerui
 https://quarkus.io/guides/security-keycloak-authorization
+
+https://quarkus.io/guides/mongodb-panache

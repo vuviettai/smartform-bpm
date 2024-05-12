@@ -4,8 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
+@EqualsAndHashCode(callSuper=false)
 public class GenericEntity extends EntityBase {
 	private String entityName;
 	private Map<String, Object> properties;

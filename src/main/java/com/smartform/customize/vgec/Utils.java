@@ -41,7 +41,7 @@ public class Utils {
 		List<String> result = new ArrayList<String>();
 		if (contracts != null) {
 			for (Submission submission : contracts) {
-				result.add(submission.get_id());
+				result.add(submission.getId());
 			}
 		}
 		return result;
