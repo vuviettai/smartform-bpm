@@ -8,11 +8,9 @@ import java.util.Set;
 import com.appbike.jdbc.common.JDBCQuery;
 import com.appbike.jdbc.pg.PostgresQuery;
 import com.smartform.domain.EntityBase;
-import com.smartform.domain.GenericEntity;
 import com.smartform.domain.dto.ResourceDto;
 import com.smartform.mapping.PropertiesTransform;
 import com.smartform.models.RequestParams;
-import com.smartform.repository.CustomerRepository;
 import com.smartform.repository.ResourceRepository;
 import com.smartform.repository.UserRepository;
 
@@ -60,8 +58,6 @@ public class ResourceService {
 	BeanManager beanManager;
 	@Inject
 	UserRepository repository;
-	@Inject
-	CustomerRepository customerRepository;
 	@Inject
 	ResourceRepository resRepository;
 	@Inject

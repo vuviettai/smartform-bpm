@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * User entity which provides access to user objects in database
@@ -16,6 +17,7 @@ import lombok.Data;
  * @author serhiy
  */
 @Data
+@EqualsAndHashCode(callSuper=true)
 @RegisterForReflection
 @Entity(name="users")
 public class User extends EntityBase {

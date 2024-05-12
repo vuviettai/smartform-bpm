@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 
 import com.smartform.domain.Service;
 import com.smartform.domain.User;
-import com.smartform.domain.dto.ServiceDto;
 import com.smartform.domain.dto.UserDto;
 import com.smartform.mapping.UserMapper;
 import com.smartform.repository.UserRepository;
@@ -28,11 +27,11 @@ import jakarta.ws.rs.core.Response;
  *
  * @author serhiy
  */
-@Path("/users")
-@Produces("application/json")
-@Consumes("application/json")
-@ApplicationScoped
-@Authenticated
+//@Path("/users")
+//@Produces("application/json")
+//@Consumes("application/json")
+//@ApplicationScoped
+//@Authenticated
 public class UserResource {
     @Inject
     UserRepository userRepository;

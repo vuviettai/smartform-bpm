@@ -8,7 +8,7 @@ import lombok.Data;
 @Data
 public class FormioForm {
 	private List<Access> access;
-	private List<FormComponent> components;
+	private List<Object> components;
 	private Date created;
 	private String display;
 	private String machineName;
