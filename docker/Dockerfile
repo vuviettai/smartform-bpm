@@ -11,7 +11,7 @@ COPY src /smartform/src/
 RUN mvn -s /usr/share/maven/ref/settings-docker.xml package -P default -Dmaven.test.skip=true
 
 # Final custom slim java image (for apk command see 17-jdk-alpine-slim)
-FROM openjdk:17-jdk-alpine
+FROM openjdk:17-jdk-alpine-slim
 # Update packages including OpenSSL
 RUN apk update && apk upgrade
 

@@ -45,7 +45,7 @@ public class RoleResource {
     // @PostConstruct
     // public void initKeycloak() {
     // keycloak = KeycloakBuilder.builder()
-    // .serverUrl("https://idm.smartform.tech/auth")
+    // .serverUrl("https://idm.smartform.click/auth")
     // .realm(realm)
     // .clientId(clientId)
     // .clientSecret(clientSecret)
