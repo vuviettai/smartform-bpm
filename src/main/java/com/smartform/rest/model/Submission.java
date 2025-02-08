@@ -34,6 +34,7 @@ public class Submission {
 	private ObjectId owner;
 	private List<ObjectId> roles;
 	private ObjectId _id;
+	private Object id;
 	private Map<String, Object> extraParams;
 	public Submission() {
 		super();
@@ -55,6 +56,13 @@ public class Submission {
 	}
 	public Submission(String form, Map<String, Object> data) {
 		super();
+		if (data != null) {
+			this.id = data.get(_ID);
+			if (this.id == null) {
+				this.id = data.get("id");
+			}
+		}
+		
 		this.form = new ObjectId(form);
 		this.data = data;
 		this.access = new ArrayList<String>();
@@ -92,9 +100,9 @@ public class Submission {
 		return extraParams != null ? extraParams.get(field) : null;
 	}
 	public String getId() {
-		return _id.toString();
+		return _id != null ? _id.toString() : (id != null ? String.valueOf(id) : null);
 	}
 	public String getFormId() {
-		return form.toString();
+		return form != null ? form.toString() : null;
 	}
 }

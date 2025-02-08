@@ -143,7 +143,7 @@ public class FormioResource extends AbstractResource {
 //			submissions = mongodbService.getSubmissions(formId, queryParams);
 //			builder = ResponseBuilder.ok(submissions, MediaType.APPLICATION_JSON);
 //			List<com.smartform.storage.mongo.entity.Submission> entities = formioService.getSubmissionAsStream(formId, queryParams).collect(Collectors.toList());
-			submissions = formioService.getSubmissionAsStream(formId, queryParams).map(entity -> entityMapper.toModel(entity)).collect(Collectors.toList());
+			submissions = formioService.getSubmissions(formId, queryParams);
 			// builder = createResponseBuilder(clientResponse);
 			
 			if (submissions != null) {

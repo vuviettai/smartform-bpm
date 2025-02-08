@@ -1,11 +1,14 @@
 package com.smartform.services;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
+import com.appbike.jdbc.pg.PostgresQuery;
 import com.smartform.storage.mongo.MongoAdapter;
 import com.smartform.storage.mongo.entity.EntityMapper;
 import com.smartform.storage.mongo.entity.FormioForm;
@@ -21,8 +24,14 @@ import jakarta.ws.rs.core.MultivaluedMap;
 public class FormioService {
 	
 	public static final String FORMIO_EXTENSION = "formExtension";
+	public static final String FORMIO_DATA_DATABASE = "database";
+	public static final String FORMIO_DATA_COLLECTION = "collection";
+	public static final String FORMIO_DATA_DATABASE_POSTGRES = "postgres";
+	
 	@Inject
 	MongoAdapter mongoAdapter;
+	@Inject
+	PostgresQuery pgQuery;
 	@Inject
 	EntityMapper entityMapper;
 //	@RestClient 
@@ -64,21 +73,39 @@ public class FormioService {
 		return FormioForm.stream(new Document(queryParams));
 	}
 	
-	public Stream<Submission> getSubmissionAsStream(String formId,
+	public List<com.smartform.rest.model.Submission> getSubmissions(String formId,
 			MultivaluedMap<String, String> queryParams) {
 		List<Submission> formExtensions = getFormExtensions(formId);
-		Stream<Submission> response = null;
+		List<com.smartform.rest.model.Submission> response = null;
 		if (formExtensions != null && formExtensions.size() > 0) {
 			Submission extension = formExtensions.get(0);
-//			SubmissionUtil.getFieldValue(extension, formId);
-//			response = formioClient.getSubmissions(formId, queryParams);
+			Object extendDb = extension.getData().get(FORMIO_DATA_DATABASE);
+			Object collection = extension.getData().get(FORMIO_DATA_COLLECTION);
+			if (FORMIO_DATA_DATABASE_POSTGRES.equals(extendDb) && collection instanceof String) {
+				//Get data from postgres db
+				List<Map<String, Object>> listData = pgQuery.queryCollection((String)collection, queryParams);
+				response = listData.stream().map(data -> new com.smartform.rest.model.Submission(formId, data)).collect(Collectors.toList());
+			}
 		} else {
 			Document filter = new Document("form", new ObjectId(formId));
 //			if (queryParams != null) {
 //				filter.putAll(queryParams);
 //			}
-			response = Submission.stream(filter);
+			Stream<com.smartform.rest.model.Submission> submissionStream = Submission.stream(filter).map(entity -> entityMapper.toModel((Submission) entity));
+			response = submissionStream.collect(Collectors.toList());
 		}
+		return response;
+	}
+	
+	public Stream<Submission> getSubmissionDocuments(String formId,
+			MultivaluedMap<String, String> queryParams) {
+		List<Submission> formExtensions = getFormExtensions(formId);
+		Stream<Submission> response = null;
+		Document filter = new Document("form", new ObjectId(formId));
+		if (queryParams != null) {
+			filter.putAll(queryParams);
+		}
+		response = Submission.stream(filter);
 		return response;
 	}
 	
@@ -150,7 +177,7 @@ public class FormioService {
 		List<Submission> result = null;
 		FormioForm formExtension = FormioForm.findByName(FORMIO_EXTENSION);
 		if (formExtension != null) {
-			result = Submission.findByFormId(formExtension.get_id(), new Document("sourceForm.formId", formId));
+			result = Submission.findByFormId(formExtension.get_id(), new Document("data.sourceForm.formId", formId));
 		}
 		return result;
 	}
